@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jaipl — a small language for building things</title>
+<meta name="description" content="jaipl is a small language that runs in any editor. Install with one command on Linux and macOS, or download the installer for Windows.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <nav>
+    <a class="brand" href="#top">
+      <span class="mark">j</span><span class="slash">/</span><span>i</span>
+      <span class="word">jaipl</span>
+    </a>
+    <div class="links">
+      <a href="#install">Install</a>
+      <a href="#learn">Learn</a>
+      <a href="#editor">Editor</a>
+      <a href="https://github.com/jaivardhanpandey66-create/jaipl">GitHub</a>
+    </div>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <h1>A small language for<br>building things.</h1>
+    <p class="lede">
+      Plain text files. No build step. No toolchain to configure before your
+      first program runs. Write <code>.jai</code> in any editor and run it with
+      one command.
+    </p>
+
+    <pre class="sample"><code>class Dog {
+    let name
+    func new(name) { self.name = name }
+    func speak() { return self.name + " says woof" }
+}
+
+print(new Dog("Rex").speak())</code></pre>
+
+    <div class="out">$ jaipl run dog.jai
+<span class="good">Rex says woof</span></div>
+
+    <div class="cta">
+      <a class="btn" href="#install">Install</a>
+      <a class="btn ghost" href="#learn">Read the guide</a>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Linux &amp; macOS</h3>
+        <p>One command. No <code>sudo</code>, nothing outside your home directory.</p>
+        <div class="cmdrow">
+          <code class="cmd" id="macos-cmd">curl -fsSL https://<span id="site-host">jaivardhanpandey66-create.github.io</span>/jaipl/install.sh | sh</code>
+          <button class="copy" data-target="macos-cmd">Copy</button>
+        </div>
+        <p class="fine">Puts <code>jaipl</code> in <code>~/.local/bin</code>. Add
+        <code>--with-associate</code> to register <code>.jai</code> files with
+        your desktop.</p>
+      </div>
+
+      <div class="card">
+        <h3>Windows</h3>
+        <p>Download the installer. It bundles Python, so nothing needs to be
+        preinstalled, and it registers <code>.jai</code> so double-clicking a
+        file runs it.</p>
+        <div class="cmdrow">
+          <a class="btn small" href="downloads/jaipl-setup-0.1.0.exe">Download
+          <code>jaipl-setup-0.1.0.exe</code></a>
+        </div>
+        <p class="fine" id="win-note">The executable is produced by
+        <code>packaging/windows/build-installer.sh</code> on a machine with
+        Inno Setup; the link lights up once it is uploaded here.</p>
+      </div>
+
+      <div class="card">
+        <h3>Any editor</h3>
+        <p>There is a VS Code extension on the Marketplace.</p>
+        <div class="cmdrow">
+          <code class="cmd">code --install-extension jaipl.jaipl</code>
+          <button class="copy" data-target="">Copy</button>
+        </div>
+        <p class="fine">Other editors: point your run command at
+        <code>jaipl run &lt;file&gt;</code>.</p>
+      </div>
+    </div>
+
+    <h3 class="sub">From a checkout</h3>
+    <div class="cmdrow">
+      <code class="cmd">git clone https://github.com/jaivardhanpandey66-create/jaipl
+cd jaipl &amp;&amp; ./install.sh --local .</code>
+    </div>
+  </section>
+
+  <section id="learn">
+    <h2>What it looks like</h2>
+    <div class="cols">
+      <div>
+        <h4>Classes that just work</h4>
+        <p>Fields, methods, one optional constructor called <code>new</code>,
+        and <code>extends</code> for inheritance. Overridden methods dispatch
+        the way you would hope, with nothing to configure.</p>
+      </div>
+      <div>
+        <h4>C++ when you want it</h4>
+        <p><code>import gpp</code> compiles and runs real C++ from inside a
+        jaipl program and hands the output back. Results are cached by source
+        hash.</p>
+      </div>
+      <div>
+        <h4>Errors that point somewhere</h4>
+        <p>Syntax errors report a line and column and draw a caret under the
+        problem. An accidental infinite loop stops with a message instead of
+        hanging your editor.</p>
+      </div>
+    </div>
+
+    <h3 class="sub">The whole language</h3>
+    <div class="grid">
+      <div><h5>Values</h5><code>int float str bool null list map</code></div>
+      <div><h5>Declare</h5><code>let x = 1<br>var y = 2</code></div>
+      <div><h5>Functions</h5><code>func f(a, b = 10) { return a + b }</code></div>
+      <div><h5>Classes</h5><code>class Dog extends Animal { }</code></div>
+      <div><h5>Choose</h5><code>if ... elif ... else</code></div>
+      <div><h5>Loop</h5><code>for i in 0..5<br>while cond</code></div>
+      <div><h5>Builtins</h5><code>print len str int push pop range type</code></div>
+      <div><h5>Built-ins</h5><code>has keys values sqrt exit clock</code></div>
+    </div>
+  </section>
+
+  <section id="editor">
+    <h2>In your editor</h2>
+    <p>Highlighting, snippets, <kbd>F5</kbd> to run, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> to
+    check, and errors as red squiggles.</p>
+    <ul class="ticks">
+      <li>Syntax highlighting for every token class the language has</li>
+      <li>Snippets for classes, constructors, loops and maps</li>
+      <li>Problems parsed from the CLI, never re-implemented in the extension</li>
+      <li><code>jaipl fmt</code> rewrites the buffer, and refuses to if it
+      would change what the program means</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <p>MIT licensed. Built to run anywhere, in whatever editor you already use.</p>
+</footer>
+
+<script>
+document.querySelectorAll('.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var box = document.getElementById(btn.dataset.target);
+    if (!box) return;
+    var text = (box.innerText || box.textContent).trim();
+    navigator.clipboard.writeText(text).then(function () {
+      var old = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(function () { btn.textContent = old; }, 1200);
+    });
+  });
+});
+</script>
+</body>
+</html>

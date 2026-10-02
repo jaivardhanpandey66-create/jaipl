@@ -1,0 +1,258 @@
+:root {
+  --bg: #0A111C;
+  --panel: #0E1626;
+  --line: #1C2942;
+  --text: #C9D6E4;
+  --dim: #7B8CA3;
+  --accent: #7FC9F3;
+  --good: #7FE3A8;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+/* ---- header ---- */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(10, 17, 28, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+nav {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.brand {
+  font-family: var(--mono);
+  font-size: 19px;
+  text-decoration: none;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+}
+.brand .mark { color: var(--accent); font-weight: 700; }
+.brand .slash { color: var(--dim); margin: 0 2px; }
+.brand .word { margin-left: 8px; letter-spacing: 0.04em; }
+.links { display: flex; gap: 24px; }
+.links a {
+  color: var(--dim);
+  text-decoration: none;
+  font-size: 15px;
+}
+.links a:hover { color: var(--accent); }
+
+/* ---- layout ---- */
+main { max-width: 1040px; margin: 0 auto; padding: 0 24px 80px; }
+section { padding: 64px 0; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: none; }
+
+h1 {
+  font-size: clamp(34px, 6vw, 56px);
+  line-height: 1.1;
+  margin: 0 0 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+h2 { font-size: 30px; margin: 0 0 24px; letter-spacing: -0.01em; }
+h3 { font-size: 19px; margin: 0 0 8px; }
+h3.sub { margin-top: 40px; }
+h4 { color: var(--accent); margin: 0 0 6px; font-size: 16px; }
+h5 { color: var(--dim); margin: 0 0 6px; font-size: 13px;
+     text-transform: uppercase; letter-spacing: 0.08em; }
+
+.lede { font-size: 19px; color: var(--dim); max-width: 62ch; margin: 0 0 32px; }
+p { max-width: 68ch; }
+a { color: var(--accent); }
+
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: #101B2C;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #CFE3F5;
+}
+kbd {
+  font-family: var(--mono);
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  background: var(--panel);
+}
+
+/* ---- code blocks ---- */
+pre.sample {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 22px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 0;
+}
+pre.sample code { background: none; border: none; padding: 0; color: var(--text); }
+
+.out {
+  font-family: var(--mono);
+  font-size: 14px;
+  background: #07111C;
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  margin: 0 0 28px;
+  padding: 12px 22px;
+  color: var(--dim);
+}
+.out .good { color: var(--good); }
+
+/* ---- buttons ---- */
+.cta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #06101C;
+  font-weight: 650;
+  font-size: 16px;
+  text-decoration: none;
+  padding: 11px 24px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+}
+.btn:hover { filter: brightness(1.08); }
+.btn.ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line);
+}
+.btn.small { font-size: 14px; padding: 9px 16px; font-weight: 550; }
+.btn code { background: none; border: none; color: inherit; padding: 0; }
+
+/* ---- command rows ---- */
+.cmdrow {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 14px 0 10px;
+  flex-wrap: wrap;
+}
+.cmd {
+  flex: 1 1 320px;
+  display: block;
+  background: #07111C;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.5;
+}
+button.copy {
+  background: var(--panel);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 18px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+button.copy:hover { color: var(--accent); border-color: var(--accent); }
+.fine { font-size: 14px; color: var(--dim); margin-top: 8px; }
+
+/* ---- cards ---- */
+.cards { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 22px;
+}
+.card p { font-size: 15px; color: var(--dim); margin: 0; }
+.card .cmdrow { margin-top: 16px; }
+
+/* ---- learn ---- */
+.cols { display: grid; gap: 26px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+.cols p { font-size: 15px; color: var(--dim); margin: 0; }
+
+.grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  margin-top: 16px;
+}
+.grid > div {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.grid code {
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* ---- ticks ---- */
+.ticks { list-style: none; padding: 0; margin: 18px 0 0; }
+.ticks li {
+  position: relative;
+  padding-left: 28px;
+  margin-bottom: 10px;
+  color: var(--dim);
+  font-size: 16px;
+}
+.ticks li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  color: var(--good);
+  font-weight: 700;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  padding: 28px 24px;
+  text-align: center;
+  color: var(--dim);
+  font-size: 14px;
+}
+footer p { margin: 0; }
+
+@media (max-width: 620px) {
+  .links { display: none; }
+  section { padding: 44px 0; }
+}
