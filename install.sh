@@ -129,10 +129,27 @@ else
   [ -n "$OK" ] || die "download failed from every mirror. Install from a
      checkout with --local PATH, or read $PAGES_URL for manual steps"
   say "unpacking"
+  # Two archive shapes are in play: a release tarball is flat, while the
+  # GitHub source archive wraps everything in a branch-named directory.
+  # Unpack somewhere scratch and find the real root either way.
+  UNPACK="$WORK/unpack"
+  mkdir -p "$UNPACK"
+  tar -xzf "$WORK/jaipl.tar.gz" -C "$UNPACK"
+  ROOT=""
+  if [ -d "$UNPACK/arcide/jaipl" ]; then
+    ROOT="$UNPACK"
+  else
+    for d in "$UNPACK"/*/; do
+      [ -d "$d/arcide/jaipl" ] && { ROOT="$d"; break; }
+    done
+  fi
+  [ -n "$ROOT" ] || die "the archive did not contain arcide/jaipl"
+
   mkdir -p "$SHARE_DIR"
-  tar -xzf "$WORK/jaipl.tar.gz" -C "$HOME/.local/share/jaipl"
+  cp -R "$ROOT/arcide" "$SHARE_DIR/"
+  cp -R "$ROOT/examples" "$SHARE_DIR/" 2>/dev/null || true
+  cp "$ROOT/JAIPL.md" "$SHARE_DIR/" 2>/dev/null || true
   RUNTIME="$SHARE_DIR"
-  [ -d "$RUNTIME/arcide/jaipl" ] || die "the archive did not contain arcide/jaipl"
 fi
 
 # --- the command -------------------------------------------------------
