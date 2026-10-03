@@ -1,0 +1,532 @@
+"""Package manager for jaipl.
+
+A package is an ordinary folder holding .jai files plus a `jaipl.json`
+manifest:
+
+    {
+      "name": "mathx",
+      "version": "0.1.0",
+      "description": "extra maths helpers",
+      "main": "mathx.jai",
+      "requires": ["jsonpack >=0.1"]
+    }
+
+Packages install into ~/.jaipl/packages/<name>/ and are then importable by
+name from any program:
+
+    import mathx
+    print(mathx.mean([1, 2, 3]))
+
+There is no network registry yet -- `search` looks in the local registry
+folder ~/.jaipl/registry/, and `install` also takes a path. This keeps every
+command honest: nothing pretends to reach a server that does not exist.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import shutil
+from pathlib import Path
+
+MANIFEST = "jaipl.json"
+
+
+class PackageError(Exception):
+    """A problem the user can fix: bad manifest, missing file, bad name."""
+
+
+def home() -> Path:
+    """The jaipl home folder, honouring JAIPL_HOME for tests and sandboxes."""
+    import os
+
+    return Path(os.environ.get("JAIPL_HOME", Path.home() / ".jaipl"))
+
+
+def packages_dir() -> Path:
+    return home() / "packages"
+
+
+def registry_dir() -> Path:
+    return home() / "registry"
+
+
+def installed_dir(name: str) -> Path:
+    return packages_dir() / name
+
+
+def installed_names() -> list[str]:
+    root = packages_dir()
+    if not root.is_dir():
+        return []
+    return sorted(p.name for p in root.iterdir() if p.is_dir())
+
+
+def _check_name(name: str) -> str:
+    """Package names are identifiers, so they can be imported directly."""
+    if not name:
+        raise PackageError("a package needs a name")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+        raise PackageError(
+            f"{name!r} is not a valid package name: use letters, digits "
+            f"and underscores, and do not start with a digit"
+        )
+    return name
+
+
+def read_manifest(folder: Path) -> dict:
+    path = folder / MANIFEST
+    if not path.is_file():
+        raise PackageError(f"{folder} has no {MANIFEST}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise PackageError(f"{path} is not valid JSON: {e}") from None
+    if not isinstance(data, dict):
+        raise PackageError(f"{path} must contain a JSON object")
+    if not data.get("name"):
+        raise PackageError(f'{path} needs a "name" field')
+    _check_name(str(data["name"]))
+    return data
+
+
+def load_installed(name: str) -> dict | None:
+    """The manifest of an installed package, or None if it is not there."""
+    folder = installed_dir(name)
+    if not (folder / MANIFEST).is_file():
+        return None
+    try:
+        return read_manifest(folder)
+    except PackageError:
+        return None
+
+
+def find_entry(name: str, manifest: dict) -> str:
+    """The file `import <name>` should load.
+
+    The manifest's "main" wins, but a same-named .jai file is accepted too so
+    a one-file package does not need a manifest to be importable.
+    """
+    main = manifest.get("main")
+    if main:
+        candidate = installed_dir(name) / str(main)
+        if not candidate.is_file():
+            raise PackageError(
+                f"package {name!r} points at a missing file: {main}"
+            )
+        return str(candidate)
+    default = installed_dir(name) / f"{name}.jai"
+    if default.is_file():
+        return str(default)
+    raise PackageError(
+        f"package {name!r} has no {MANIFEST} \"main\" entry and no "
+        f"{name}.jai file"
+    )
+
+
+def _parse_version(text: str) -> tuple[int, ...]:
+    parts = []
+    for chunk in str(text).split("."):
+        digits = "".join(c for c in chunk if c.isdigit())
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts)
+
+
+def parse_requirement(text: str) -> tuple[str, str]:
+    """Split 'mathx >=0.2' into ('mathx', '>=0.2')."""
+    match = re.fullmatch(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*(>=|<=|==|>|<)?\s*([\d.]*)\s*",
+                         text)
+    if not match:
+        raise PackageError(f'cannot read requirement {text!r}: try "name >=1.0"')
+    name, op, version = match.groups()
+    if not op:
+        op, version = ">=", "0"
+    return name, f"{op}{version}"
+
+
+def requirement_met(text: str) -> bool:
+    """Is an installed package new enough for a requirement?"""
+    name, rule = parse_requirement(text)
+    manifest = load_installed(name)
+    if manifest is None:
+        return False
+    have = _parse_version(manifest.get("version", "0"))
+    op, want = rule[0], rule[1:]
+    try:
+        want_v = _parse_version(want or "0")
+    except ValueError:
+        return False
+    if op == ">=":
+        return have >= want_v
+    if op == ">":
+        return have > want_v
+    if op == "<=":
+        return have <= want_v
+    if op == "<":
+        return have < want_v
+    if op == "==":
+        return have == want_v
+    raise PackageError(f"unknown comparison {op!r}")
+
+
+def _copy_package(source: Path, dest: Path) -> None:
+    shutil.copytree(
+        source,
+        dest,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"),
+    )
+
+
+def install(source: str, *, upgrade: bool = False) -> tuple[str, str]:
+    """Install a package from a folder path or the local registry.
+
+    Returns (name, action) where action is "installed", "upgraded" or
+    "unchanged".
+    """
+    src = Path(source).expanduser()
+    if not src.exists():
+        candidate = registry_dir() / source
+        if candidate.is_dir():
+            src = candidate
+        elif (registry_dir() / source / MANIFEST).is_file():
+            src = registry_dir() / source
+    if not src.is_dir():
+        raise PackageError(
+            f"cannot find package {source!r}. Give a folder path, or put the "
+            f"package in {registry_dir()}"
+        )
+
+    manifest = read_manifest(src)
+    name = _check_name(str(manifest["name"]))
+
+    missing = [
+        req
+        for req in manifest.get("requires", [])
+        if not requirement_met(req)
+    ]
+    if missing:
+        listed = ", ".join(missing)
+        raise PackageError(
+            f"{name} needs these packages installed first: {listed}"
+        )
+
+    dest = installed_dir(name)
+    if dest.exists():
+        if not upgrade:
+            have = load_installed(name) or {}
+            same = have.get("version") == manifest.get("version")
+            if same:
+                return name, "unchanged"
+            raise PackageError(
+                f"{name} {manifest.get('version')} is already installed "
+                f"(you have {have.get('version')}). Use `install {source} "
+                f"--upgrade` to replace it."
+            )
+        shutil.rmtree(dest)
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _copy_package(src, dest)
+
+    # A manifest can name a main file that does not exist; catch that now
+    # rather than at import time.
+    find_entry(name, manifest)
+    return name, "upgraded" if upgrade and dest.exists() else "installed"
+
+
+def uninstall(name: str) -> bool:
+    _check_name(name)
+    folder = installed_dir(name)
+    if not folder.is_dir():
+        return False
+    shutil.rmtree(folder)
+    return True
+
+
+def list_packages() -> list[dict]:
+    found = []
+    for name in installed_names():
+        manifest = load_installed(name) or {"name": name}
+        found.append(manifest)
+    return found
+
+
+def registry_packages() -> list[str]:
+    root = registry_dir()
+    if not root.is_dir():
+        return []
+    return sorted(
+        p.name for p in root.iterdir() if p.is_dir() and (p / MANIFEST).is_file()
+    )
+
+
+def search(term: str = "") -> list[dict]:
+    needle = term.lower()
+    found = []
+    for name in registry_packages():
+        folder = registry_dir() / name
+        try:
+            manifest = read_manifest(folder)
+        except PackageError:
+            continue
+        blob = f"{manifest.get('name','')} {manifest.get('description','')}".lower()
+        if needle in blob:
+            manifest["installed"] = load_installed(str(manifest["name"])) is not None
+            found.append(manifest)
+    return found
+
+
+def package_path(name: str) -> str | None:
+    """The entry file for an installed package, or None if not installed."""
+    manifest = load_installed(name)
+    if manifest is None:
+        return None
+    try:
+        return find_entry(name, manifest)
+    except PackageError:
+        return None
+
+
+# ------------------------------------------------------------- project file
+
+PROJECT_FILE = "jaipl.json"
+
+
+def read_project(folder: Path) -> dict | None:
+    path = folder / PROJECT_FILE
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise PackageError(f"{path} is not valid JSON: {e}") from None
+    if not isinstance(data, dict):
+        raise PackageError(f"{path} must contain a JSON object")
+    return data
+
+
+def write_project(folder: Path, data: dict) -> Path:
+    path = folder / PROJECT_FILE
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def add_dependency(folder: Path, name: str, version: str = "*") -> Path:
+    """Record a dependency in the project's jaipl.json."""
+    project = read_project(folder) or {"name": folder.name, "version": "0.1.0"}
+    deps = project.setdefault("dependencies", {})
+    if name in deps and deps[name] != version:
+        raise PackageError(
+            f"{name} is already listed as {deps[name]} in {folder / PROJECT_FILE}"
+        )
+    deps[name] = version
+    return write_project(folder, project)
+
+
+def sync(folder: Path) -> tuple[list[str], list[str]]:
+    """Install everything the project lists. Returns (installed, missing)."""
+    project = read_project(folder)
+    if project is None:
+        raise PackageError(f"no {PROJECT_FILE} in {folder}")
+    installed, missing = [], []
+    for name, want in (project.get("dependencies") or {}).items():
+        try:
+            install(name, upgrade=True)
+        except PackageError:
+            missing.append(f"{name} {want}".strip())
+            continue
+        if not requirement_met(f"{name} >={want}" if want != "*" else name):
+            missing.append(f"{name} {want}".strip())
+            continue
+        installed.append(name)
+    return installed, missing
+
+# ------------------------------------------------------------------ remote
+
+DEFAULT_REGISTRY = "https://jaipl.jaipl.dev"
+
+
+def config_path():
+    return home() / "config.json"
+
+
+def read_config() -> dict:
+    path = config_path()
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise PackageError(f"{path} is not valid JSON: {e}") from None
+    return data if isinstance(data, dict) else {}
+
+
+def write_config(**settings) -> Path:
+    data = read_config()
+    data.update(settings)
+    home().mkdir(parents=True, exist_ok=True)
+    path = config_path()
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def registry_url() -> str:
+    return str(read_config().get("registry") or DEFAULT_REGISTRY).rstrip("/")
+
+
+def _request(path: str, payload: dict | None = None, timeout: float = 20.0):
+    """Talk to the registry. Raises PackageError with a readable message."""
+    import urllib.error
+    import urllib.request
+
+    url = registry_url() + path
+    data = None
+    headers = {"Accept": "application/json", "User-Agent": "jaipl-pkg"}
+    if payload is not None:
+        import base64
+
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+        token = read_config().get("token")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, data=data, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read()
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = json.loads(e.read().decode("utf-8")).get("error", "")
+        except Exception:  # noqa: BLE001
+            pass
+        raise PackageError(
+            f"registry said {e.code} {e.reason}{': ' + detail if detail else ''}"
+        ) from None
+    except urllib.error.URLError as e:
+        raise PackageError(
+            f"cannot reach the registry at {url}: {e.reason}\n"
+            f"check your connection, or point elsewhere with:\n"
+            f"  jaipl config registry <url>"
+        ) from None
+    except TimeoutError:
+        raise PackageError(f"the registry at {url} timed out") from None
+    try:
+        return json.loads(body.decode("utf-8"))
+    except json.JSONDecodeError:
+        raise PackageError(f"the registry sent something that is not JSON") from None
+
+
+def _request_bytes(path: str, timeout: float = 60.0) -> bytes:
+    """Fetch a non-JSON response, such as a package archive."""
+    import urllib.error
+    import urllib.request
+
+    url = registry_url() + path
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "jaipl-pkg", "Accept": "application/zip"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read()
+    except urllib.error.HTTPError as e:
+        raise PackageError(f"registry said {e.code} {e.reason}") from None
+    except urllib.error.URLError as e:
+        raise PackageError(
+            f"cannot reach the registry at {url}: {e.reason}"
+        ) from None
+    except TimeoutError:
+        raise PackageError(f"the registry at {url} timed out") from None
+
+
+def remote_search(term: str = "") -> list[dict]:
+    packages = _request("/api/packages").get("packages", [])
+    needle = term.lower()
+    found = []
+    for meta in packages:
+        blob = f"{meta.get('name','')} {meta.get('description','')}".lower()
+        if needle and needle not in blob:
+            continue
+        meta = dict(meta)
+        meta["installed"] = load_installed(str(meta.get("name", ""))) is not None
+        found.append(meta)
+    return found
+
+
+def install_from_registry(name: str, *, upgrade: bool = False):
+    """Download a package from the configured registry and install it."""
+    import hashlib
+    import io
+    import zipfile
+
+    _check_name(name)
+    if installed_dir(name).exists() and not upgrade:
+        have = load_installed(name) or {}
+        raise PackageError(
+            f"{name} {have.get('version')} is already installed. "
+            f"Use `install {name} --upgrade` to update it."
+        )
+
+    info = _request(f"/api/packages/{name}")
+    version = str(info.get("version", "0"))
+    blob = _request_bytes(f"/api/packages/{name}/download")
+
+    expected = info.get("sha256")
+    if expected:
+        actual = hashlib.sha256(blob).hexdigest()
+        if actual != expected:
+            raise PackageError(
+                f"{name} {version} failed its checksum: the download does not "
+                f"match what the registry published. Nothing was installed."
+            )
+
+    dest = installed_dir(name)
+    if dest.exists():
+        shutil.rmtree(dest)
+    try:
+        with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+            for member in zf.namelist():
+                # Refuse paths that would escape the install folder.
+                target = (dest / member).resolve()
+                if not str(target).startswith(str(dest.resolve())):
+                    raise PackageError(
+                        f"{name} contains a file outside its folder: {member}"
+                    )
+            zf.extractall(dest)
+    except zipfile.BadZipFile:
+        raise PackageError(f"{name} download is not a readable zip file") from None
+
+    # The published archive wraps everything in a folder named after the
+    # package; flatten it so imports line up with local packages.
+    nested = dest / name
+    if nested.is_dir() and not (dest / MANIFEST).exists():
+        shutil.move(str(nested), str(dest.parent / f".{name}.staging"))
+        shutil.rmtree(dest)
+        shutil.move(str(dest.parent / f".{name}.staging"), str(dest))
+
+    manifest = read_manifest(dest)
+    manifest["version"] = version
+    (dest / MANIFEST).write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
+    find_entry(name, manifest)
+    return name, "upgraded" if upgrade else "installed"
+
+
+def publish(folder: Path):
+    """Upload a package folder to the configured registry."""
+    import base64
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    from tools.registry_server import build_zip  # type: ignore
+
+    folder = Path(folder).resolve()
+    manifest = read_manifest(folder)
+    name = _check_name(str(manifest["name"]))
+    if "version" not in manifest:
+        raise PackageError(f'{folder / MANIFEST} needs a "version" field')
+    zip_bytes = build_zip(folder, name)
+    payload = dict(manifest)
+    payload["zip"] = base64.b64encode(zip_bytes).decode("ascii")
+    record = _request("/api/packages", payload=payload, timeout=60.0)
+    return name, record

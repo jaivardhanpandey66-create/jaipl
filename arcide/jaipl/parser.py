@@ -107,6 +107,8 @@ class Attribute(Node):
 class Index(Node):
     target: object = None
     key: object = None
+    stop: object = None   # set for slices like xs[1:3]
+    is_slice: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +184,26 @@ class Block(Node):
 
 
 @dataclass(frozen=True, slots=True)
+class Throw(Node):
+    value: object = None
+
+
+@dataclass(frozen=True, slots=True)
+class Catch(Node):
+    name: str = ""            # binding variable, "" if unbound
+    type_name: str = ""       # "" catches anything
+    body: object = None
+
+
+@dataclass(frozen=True, slots=True)
+class Try(Node):
+    body: object = None
+    handlers: tuple = ()
+    orelse: object = None     # runs when nothing was thrown
+    finally_: object = None   # always runs
+
+
+@dataclass(frozen=True, slots=True)
 class Field(Node):
     name: str = ""
     value: object = None
@@ -214,6 +236,7 @@ class Program(Node):
 STATEMENT_KEYWORDS = (
     "let", "var", "func", "class", "if", "elif", "else", "while", "for",
     "return", "break", "continue", "new", "import",
+    "try", "catch", "finally", "throw",
 )
 
 
@@ -311,6 +334,51 @@ class Parser:
         return Program(line=1, body=tuple(body), comments=tuple(self.comments))
 
     # -- statements ----------------------------------------------------
+    def throw_stmt(self):
+        t = self.cur
+        self.advance()
+        if self.cur.kind == "newline" or self.at_op(";") or self.at("eof"):
+            value = None
+        else:
+            value = self.expression()
+        self.end_statement()
+        return Throw(line=t.line, value=value)
+
+    def try_stmt(self):
+        t = self.cur
+        self.expect_kw("try")
+        body = self.block()
+        handlers = []
+        # catch / else / finally are usually written on their own lines.
+        self.skip_newlines()
+        while self.at_kw("catch"):
+            self.advance()
+            type_name = ""
+            # 'as' is not a keyword, so exclude it before reading a type name.
+            if self.cur.kind == "ident" and self.cur.value != "as":
+                type_name = self.expect_ident().value
+            name = ""
+            if self.at("ident", "as"):
+                self.advance()
+                name = self.expect_ident().value
+            handlers.append(Catch(line=t.line, name=name,
+                                  type_name=type_name, body=self.block()))
+            self.skip_newlines()
+        orelse = None
+        if self.at_kw("else"):
+            self.advance()
+            orelse = self.block()
+        finally_ = None
+        if self.at_kw("finally"):
+            self.advance()
+            finally_ = self.block()
+        if not handlers and orelse is None and finally_ is None:
+            raise ParseError(
+                "try needs a catch, else or finally block", t.line, t.col)
+        self.end_statement()
+        return Try(line=t.line, body=body, handlers=tuple(handlers),
+                   orelse=orelse, finally_=finally_)
+
     def statement(self):
         t = self.cur
 
@@ -346,6 +414,10 @@ class Parser:
             self.advance()
             self.end_statement()
             return Continue(line=t.line)
+        if self.at_kw("try"):
+            return self.try_stmt()
+        if self.at_kw("throw"):
+            return self.throw_stmt()
         if self.at_kw("import"):
             self.advance()
             name = self.cur
@@ -614,9 +686,17 @@ class Parser:
                 continue
             if self.at_op("["):
                 self.advance()
-                key = self.expression()
+                # xs[i] is one value; xs[a:b] is a slice. Both may be left
+                # out on either side, so a missing key is a real state here.
+                key = None if self.at_op(":") else self.expression()
+                stop = None
+                is_slice = self.at_op(":")
+                if is_slice:
+                    self.advance()
+                    stop = None if self.at_op("]") else self.expression()
                 self.expect_op("]")
-                expr = Index(line=expr.line, target=expr, key=key)
+                expr = Index(line=expr.line, target=expr, key=key, stop=stop,
+                             is_slice=is_slice)
                 continue
             break
         return expr

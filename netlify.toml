@@ -1,0 +1,29 @@
+# Netlify serves the site straight from the repository -- no build step,
+# no bundler, nothing to install. That matches the language itself: jaipl
+# needs nothing but Python.
+[build]
+  publish = "jaipl-site"
+  command = "echo 'static site: no build needed'"
+
+[build.environment]
+  PYTHON_VERSION = "3.11"
+
+# Netlify serves .jai files as plain text rather than downloading them.
+[[headers]]
+  for = "/*.jai"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+
+# The installer is fetched and piped to a shell, so it must never be
+# cached as HTML and must carry a clear download disposition.
+[[headers]]
+  for = "/install.sh"
+  [headers.values]
+    Content-Type = "text/x-shellscript; charset=utf-8"
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

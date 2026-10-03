@@ -112,6 +112,8 @@ def cmd_run(path: str, args: list[str], max_steps: int = 0) -> int:
         return _report(e, path, text)
 
     interp = Interpreter(out=out, max_steps=max_steps)
+
+    interp.source_dir = Path(path).resolve().parent
     try:
         interp.run(prog)
     except ExitSignal as e:
@@ -213,7 +215,181 @@ USAGE = f"""{_C['bold']}jaipl {_C['off']} -- a small language for building thing
   jaipl fmt FILE     format the file in place
   jaipl repl         interactive prompt
   jaipl version      print the version
+
+  jaipl install NAME|PATH   install a package (also: jai install ...)
+  jaipl uninstall NAME     remove a package
+  jaipl list               list installed packages
+  jaipl search [TERM]       search the local registry
+  jaipl sync               install everything jaipl.json asks for
+  jaipl publish [FOLDER]   upload a package to the registry
+  jaipl config KEY VALUE   set registry URL or publish token
 """
+
+
+
+def install_one(pkg, target: str, *, upgrade: bool = False):
+    """Try a local folder or the registry folder first, then the network."""
+    try:
+        return pkg.install(target, upgrade=upgrade)
+    except pkg.PackageError as local_error:
+        from pathlib import Path as _P
+
+        if _P(target).expanduser().is_dir():
+            raise  # a real folder that is broken: say so, do not go online
+        try:
+            return pkg.install_from_registry(target, upgrade=upgrade)
+        except pkg.PackageError as remote_error:
+            raise pkg.PackageError(
+                f"{target!r} is not installed and not in the registry.\n"
+                f"  local: {local_error}\n"
+                f"  registry: {remote_error}"
+            ) from None
+
+
+def cmd_install(rest: list[str]) -> int:
+    """Install a package from a folder or the local registry."""
+    from . import pkg
+
+    if not rest:
+        print(_C["red"] + "jaipl install: needs a package name or path" + _C["off"],
+              file=sys.stderr)
+        return 2
+    upgrade = "--upgrade" in rest or "-u" in rest
+    targets = [a for a in rest if not a.startswith("-")]
+    bad = False
+    for target in targets:
+        try:
+            name, action = install_one(pkg, target, upgrade=upgrade)
+        except pkg.PackageError as e:
+            print(_C["red"] + f"install failed: {e}" + _C["off"], file=sys.stderr)
+            bad = True
+            continue
+        # Record it in the project file so others can reproduce the setup.
+        try:
+            pkg.add_dependency(Path.cwd(), name)
+        except pkg.PackageError:
+            pass
+        if action == "unchanged":
+            print(f"{name} is already installed")
+        else:
+            print(f"{action} {name}")
+    return 1 if bad else 0
+
+
+def cmd_uninstall(rest: list[str]) -> int:
+    from . import pkg
+
+    if not rest:
+        print(_C["red"] + "jaipl uninstall: needs a package name" + _C["off"],
+              file=sys.stderr)
+        return 2
+    bad = False
+    for name in rest:
+        try:
+            gone = pkg.uninstall(name)
+        except pkg.PackageError as e:
+            print(_C["red"] + f"uninstall failed: {e}" + _C["off"], file=sys.stderr)
+            bad = True
+            continue
+        print(f"removed {name}" if gone else f"{name} was not installed")
+    return 1 if bad else 0
+
+
+def cmd_list(rest: list[str]) -> int:
+    from . import pkg
+
+    found = pkg.list_packages()
+    if not found:
+        print("no packages installed")
+        print(f"install one with: jaipl install <name-or-path>")
+        return 0
+    for manifest in found:
+        name = manifest.get("name", "?")
+        version = manifest.get("version", "0")
+        note = manifest.get("description", "")
+        print(f"{name} {version}" + (f"  - {note}" if note else ""))
+    return 0
+
+
+def cmd_search(rest: list[str]) -> int:
+    from . import pkg
+
+    term = rest[0] if rest else ""
+    if "--local" in rest:
+        found = pkg.search(term)
+        if not found:
+            print(f"nothing in the local registry matches {term!r}")
+            print(f"registry folder: {pkg.registry_dir()}")
+            return 0
+    else:
+        try:
+            found = pkg.remote_search(term)
+        except pkg.PackageError as e:
+            print(_C["yellow"] + f"registry unavailable: {e}" + _C["off"],
+                  file=sys.stderr)
+            print("showing the local registry instead", file=sys.stderr)
+            found = pkg.search(term)
+        if not found:
+            print(f"nothing published matches {term!r}")
+            return 0
+    for manifest in found:
+        mark = " (installed)" if manifest.get("installed") else ""
+        print(f"{manifest.get('name')} {manifest.get('version','')}{mark}"
+              + (f"  - {manifest.get('description','')}"
+                 if manifest.get("description") else ""))
+    return 0
+
+
+def cmd_publish(rest: list[str]) -> int:
+    from . import pkg
+
+    folder = Path(rest[0]).resolve() if rest else Path.cwd()
+    try:
+        name, record = pkg.publish(folder)
+    except pkg.PackageError as e:
+        print(_C["red"] + f"publish failed: {e}" + _C["off"], file=sys.stderr)
+        return 1
+    print(f"published {name} {record.get('version')} "
+          f"({record.get('size', 0):,} bytes)")
+    return 0
+
+
+def cmd_config(rest: list[str]) -> int:
+    from . import pkg
+
+    if len(rest) < 2:
+        settings = pkg.read_config()
+        for key, value in settings.items():
+            shown = "***" if key == "token" and value else value
+            print(f"{key} = {shown}")
+        if not settings:
+            print(f"registry = {pkg.registry_url()}  (default)")
+        return 0
+    key, value = rest[0], rest[1]
+    if key not in ("registry", "token"):
+        print(_C["red"] + f"unknown setting {key!r}: use registry or token"
+              + _C["off"], file=sys.stderr)
+        return 2
+    pkg.write_config(**{key: value})
+    print(f"{key} = " + ("***" if key == "token" else value))
+    return 0
+
+
+def cmd_sync(rest: list[str]) -> int:
+    """Install everything the project's jaipl.json asks for."""
+    from . import pkg
+
+    folder = Path(rest[0]).resolve() if rest else Path.cwd()
+    try:
+        installed, missing = pkg.sync(folder)
+    except pkg.PackageError as e:
+        print(_C["red"] + f"sync failed: {e}" + _C["off"], file=sys.stderr)
+        return 2
+    for name in installed:
+        print(f"installed {name}")
+    for entry in missing:
+        print(_C["yellow"] + f"could not install {entry}" + _C["off"], file=sys.stderr)
+    return 1 if missing else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -224,6 +400,9 @@ def main(argv: list[str] | None = None) -> int:
     if argv[0] in ("-v", "--version", "version"):
         print(f"jaipl {VERSION}")
         return 0
+
+    if argv[0] == "jai":
+        argv[0] = "jaipl"
 
     cmd, rest = argv[0], argv[1:]
     if cmd == "run":
@@ -246,6 +425,20 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_fmt(rest[0])
     if cmd == "repl":
         return cmd_repl()
+    if cmd == "install":
+        return cmd_install(rest)
+    if cmd == "uninstall":
+        return cmd_uninstall(rest)
+    if cmd in ("list", "ls"):
+        return cmd_list(rest)
+    if cmd == "search":
+        return cmd_search(rest)
+    if cmd == "sync":
+        return cmd_sync(rest)
+    if cmd == "publish":
+        return cmd_publish(rest)
+    if cmd == "config":
+        return cmd_config(rest)
 
     print(_C["red"] + f"jaipl: unknown command {cmd!r}" + _C["off"],
           file=sys.stderr)

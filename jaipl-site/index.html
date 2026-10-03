@@ -15,6 +15,7 @@
       <span class="word">jaipl</span>
     </a>
     <div class="links">
+      <a href="#packages">Packages</a>
       <a href="#install">Install</a>
       <a href="#learn">Learn</a>
       <a href="#editor">Editor</a>
@@ -45,7 +46,46 @@ print(new Dog("Rex").speak())</code></pre>
 
     <div class="cta">
       <a class="btn" href="#install">Install</a>
+      <a class="btn ghost" href="#packages">Packages</a>
       <a class="btn ghost" href="#learn">Read the guide</a>
+    </div>
+  </section>
+
+  <section id="packages">
+    <h2>Packages</h2>
+    <p>Install a library from the terminal, then use it by name.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>Install</h3>
+        <div class="cmdrow">
+          <code class="cmd" id="pkg-install">jai install mathx</code>
+          <button class="copy" data-target="pkg-install">Copy</button>
+        </div>
+        <p class="fine">Installed into <code>~/.jaipl/packages</code>. Add
+        <code>--upgrade</code> to update, <code>jai list</code> to see what you
+        have.</p>
+      </div>
+      <div class="card">
+        <h3>Use</h3>
+        <div class="cmdrow">
+          <code class="cmd" id="pkg-use">import mathx
+print(mathx.mean([1, 2, 3]))</code>
+          <button class="copy" data-target="pkg-use">Copy</button>
+        </div>
+        <p class="fine">A package is a folder of <code>.jai</code> files with a
+        <code>jaipl.json</code> manifest, so you can also install straight from
+        a folder.</p>
+      </div>
+      <div class="card">
+        <h3>Publish</h3>
+        <div class="cmdrow">
+          <code class="cmd" id="pkg-pub">jai publish</code>
+          <button class="copy" data-target="pkg-pub">Copy</button>
+        </div>
+        <p class="fine">Uploads the package to the registry. The registry is
+        self-hosted and standard-library only &mdash;
+        <code>tools/registry_server.py</code>.</p>
+      </div>
     </div>
   </section>
 
@@ -57,7 +97,7 @@ print(new Dog("Rex").speak())</code></pre>
         <h3>Linux &amp; macOS</h3>
         <p>One command. No <code>sudo</code>, nothing outside your home directory.</p>
         <div class="cmdrow">
-          <code class="cmd" id="macos-cmd">curl -fsSL https://<span id="site-host">jaivardhanpandey66-create.github.io</span>/jaipl/install.sh | sh</code>
+          <code class="cmd" id="macos-cmd">curl -fsSL https://<span id="site-host">jaivardhanpandey66-create.github.io/jaipl</span>/install.sh | sh</code>
           <button class="copy" data-target="macos-cmd">Copy</button>
         </div>
         <p class="fine">Puts <code>jaipl</code> in <code>~/.local/bin</code>. Add
@@ -67,16 +107,15 @@ print(new Dog("Rex").speak())</code></pre>
 
       <div class="card">
         <h3>Windows</h3>
-        <p>Download the installer. It bundles Python, so nothing needs to be
-        preinstalled, and it registers <code>.jai</code> so double-clicking a
-        file runs it.</p>
+        <p>Run it with Python 3.11 or newer, the same way as everywhere else.
+        There is no bundled installer to download yet.</p>
         <div class="cmdrow">
-          <a class="btn small" href="downloads/jaipl-setup-0.1.0.exe">Download
-          <code>jaipl-setup-0.1.0.exe</code></a>
+          <code class="cmd">python -m arcide.jaipl.cli run program.jai</code>
+          <button class="copy" data-target="win-cmd">Copy</button>
         </div>
-        <p class="fine" id="win-note">The executable is produced by
+        <p class="fine" id="win-cmd">A single-file executable is produced by
         <code>packaging/windows/build-installer.sh</code> on a machine with
-        Inno Setup; the link lights up once it is uploaded here.</p>
+        Inno Setup. Until one is published here, use the command above.</p>
       </div>
 
       <div class="card">
@@ -166,5 +205,16 @@ document.querySelectorAll('.copy').forEach(function (btn) {
   });
 });
 </script>
+  <script>
+    // The installer has to be fetched by absolute URL, so build it from
+    // whichever host is serving the page. GitHub Pages puts the site in a
+    // /jaipl sub-path; Netlify and other hosts serve it at the root.
+    (function () {
+      var el = document.getElementById('site-host');
+      if (!el || !window.location.host) return;
+      var host = window.location.host;
+      el.textContent = host.indexOf('github.io') !== -1 ? host + '/jaipl' : host;
+    })();
+  </script>
 </body>
 </html>

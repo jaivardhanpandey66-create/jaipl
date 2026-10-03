@@ -1,187 +1,338 @@
-# jaipl
+# jaipl basics
 
-A small language for building things. Plain text files, no build step, no
-toolchain to configure before your first program runs.
+A short tour of the language. Everything here is tested and working today.
+
+```bash
+jaipl run program.jai     # run a file
+jaipl repl               # interactive prompt
+```
+
+---
+
+## 1. Hello, world
+
+```jaipl
+print("hello, world")
+```
+
+`print` accepts any value: strings, numbers, lists, maps, objects.
+
+---
+
+## 2. Variables
+
+`let` declares a name. Types are inferred, and there are no separate int/float
+types to fight — `3` and `3.0` both work, and mixing them is fine.
+
+```jaipl
+let name = "jai"
+let count = 10
+let ratio = 0.75
+```
+
+Names ending in `_` are conventionally private to a module.
+
+---
+
+## 3. Numbers
+
+Integers and floats are the same number type. Division always produces a float.
+
+```jaipl
+print(7 / 2)        // 3.5
+print(7 + 2 * 3)    // 13
+print(10 % 3)       // 1
+print(2.0 * 4)      // 8.0
+```
+
+---
+
+## 4. Conditionals
+
+`elif` is spelled with an `e`. Blocks use braces.
+
+```jaipl
+let n = 7
+if n < 5 {
+    print("small")
+} elif n < 10 {
+    print("medium")
+} else {
+    print("large")
+}
+```
+
+---
+
+## 5. Loops
+
+Three forms. Ranges use `0..10`, which excludes the upper bound.
+
+```jai
+for i in 0..5 { print(i) }             // 0 1 2 3 4
+while x < 3 { print(x); x = x + 1 }    // while with a condition
+for item in [10, 20, 30] { print(item) }   // any list
+```
+
+`for` also walks maps (over their keys) and strings (over characters):
+
+```jaipl
+for key in {"a": 1, "b": 2} { print(key) }   // a  b
+for ch in "abc" { print(ch) }                 // a  b  c
+```
+
+Use `break` to stop early and `continue` to skip one iteration.
+
+---
+
+## 6. Functions
+
+```jaipl
+func add(a, b) {
+    return a + b
+}
+print(add(2, 3))
+```
+
+Parameters can have defaults:
+
+```jaipl
+func greet(name, greeting = "hello") {
+    return greeting + ", " + name
+}
+print(greet("jai"))            // hello, jai
+print(greet("jai", "hi"))      // hi, jai
+```
+
+---
+
+## 7. Lists (arrays)
+
+```jaipl
+let xs = [1, 2, 3]
+push(xs, 4)              // append
+print(len(xs))           // 4
+print(xs[0])             // 1
+print(pop(xs))           // 4, and removes it
+```
+
+Slices work like Python's:
+
+```jaipl
+let xs = [0, 1, 2, 3]
+print(xs[1:3])     // [1, 2]
+print(xs[:2])      // [0, 1]
+print(xs[2:])      // [2, 3]
+print(xs[-2:])     // [2, 3]
+```
+
+---
+
+## 8. Maps (dictionaries)
+
+```jaipl
+let ages = {"jai": 20, "sam": 22}
+print(ages["jai"])            // 20
+print(has(ages, "sam"))       // true
+for key in ages { print(key) }
+```
+
+---
+
+## 9. Strings
+
+Double quotes. `+` joins strings.
+
+```jaipl
+let s = "jaipl"
+print(upper(s))              // JAIPL
+print(s[1:4])                // aip
+print(join(split("a,b,c", ","), " | "))   // a | b | c
+print(replace(s, "j", "J"))  // Jaipl
+print(starts_with(s, "jai")) // true
+print(repeat("ab", 3))       // ababab
+```
+
+Useful ones: `upper lower strip lstrip rstrip split join replace find
+starts_with ends_with contains repeat count ord chr`.
+
+---
+
+## 10. Errors and recovery
+
+`try` runs a block. If something fails, a `catch` handles it; `finally` always
+runs. `else` runs only when nothing went wrong.
+
+```jaipl
+try {
+    let data = read(open("config.txt", "r"))
+    print(data)
+} catch as e {
+    print("could not read it: " + e)
+} finally {
+    print("done either way")
+}
+```
+
+Raising your own error is `throw`:
+
+```jaipl
+func check(age) {
+    if age < 0 {
+        throw "age cannot be negative"
+    }
+    return "ok: " + str(age)
+}
+```
+
+A `catch` clause can filter by error name:
+
+```jaipl
+try {
+    let f = open("missing.txt", "r")
+} catch RuntimeError {
+    print("could not open it")
+}
+```
+
+Any failure — including division by zero and bad indexes — arrives as a
+`RuntimeError` with a message written for the person reading it, so it can be
+caught like any other.
+
+---
+
+## 11. Files
+
+```jaipl
+let f = open("notes.txt", "w")
+write_line(f, "first line")
+close(f)
+
+let g = open("notes.txt", "r")
+for line in read_lines(g) {
+    print(strip(line))
+}
+close(g)
+
+print(file_exists("notes.txt"))
+print(list_dir("."))
+remove_file("notes.txt")
+```
+
+Modes: `r` read, `w` write (truncates), `a` append, `x` create only.
+
+---
+
+## 12. Classes and objects
 
 ```jaipl
 class Dog {
-    let name
-    func new(name) { self.name = name }
-    func speak() { return self.name + " says woof" }
+    func new(name) {
+        self.name = name
+    }
+
+    func speak() {
+        return self.name + " says woof"
+    }
 }
 
 let d = new Dog("Rex")
 print(d.speak())
 ```
 
-Run it from any editor:
+A class with no `new` method is an abstract base: it supplies behaviour for
+subclasses but cannot be instantiated on its own.
 
-```
-jaipl run dog.jai
-```
-
-## Install
-
-**macOS and Linux** — one command, no `sudo`:
-
-```sh
-curl -fsSL https://jaivardhanpandey66-create.github.io/jaipl/install.sh | sh
-```
-
-That puts `jaipl` in `~/.local/bin`. Add `.jai` files to your desktop and to
-the right-click menu with `--with-associate`.
-
-**Windows** — download the installer from
-[https://jaivardhanpandey66-create.github.io/jaipl](https://jaivardhanpandey66-create.github.io/jaipl). It bundles Python, so nothing needs
-to be preinstalled, and it registers `.jai` so double-clicking runs the file.
-
-**Any editor** — `.jai` is plain text and `jaipl` is a normal command, so
-anything that can run a terminal command can run jaipl. There is a VS Code
-extension on the Marketplace.
-
-jaipl needs Python 3.11 or newer, and `g++` if you want the C++ bridge.
-
-## Why it is shaped this way
-
-The language is deliberately small, because the point is to get to a running
-program before you have read a manual:
-
-- `let` makes a value, `var` makes one you can change.
-- Indentation is free. Braces or newlines end a statement; you rarely need
-  either.
-- Classes have fields, methods and one optional constructor named `new`.
-  Inheritance is `extends`, and overridden methods dispatch the way you would
-  hope.
-- Errors point at the line and column and print a caret under the problem.
-- An accidental infinite loop stops with a message instead of hanging.
-
-## Language reference
-
-### Values
-
-`int`, `float`, `str`, `bool`, `null`, `list`, `map`, and your own classes.
-
-```jaipl
-let n = 42
-let pi = 3.14
-let name = "jaipl"
-let ok = true
-let nothing = null
-let xs = [1, 2, 3]
-let ages = {"rai": 19, "sam": 21}
-```
-
-### Variables
-
-```jaipl
-let name = "fixed"     // value
-var count = 0          // you can reassign
-count = count + 1
-```
-
-### Functions
-
-```jaipl
-func add(a, b = 10) {
-    return a + b
-}
-
-print(add(1))        // 11
-print(add(1, 2))     // 3
-```
-
-### Classes
+Inheritance uses `extends`, and methods can be overridden:
 
 ```jaipl
 class Animal {
-    let name = "?"
+    func new(name) { self.name = name }
     func speak() { return "..." }
-    func describe() { return self.name + " says " + self.speak() }
 }
 
-class Dog extends Animal {
-    let name = "Rex"
-    func speak() { return "woof" }      // overrides Animal.speak
+class Cat extends Animal {
+    func speak() { return self.name + " meow" }
 }
 
-print(new Dog().describe())            // Rex says woof
+print(new Cat("Tom").speak())   // Tom meow
 ```
 
-A class's `new` method is its constructor, and it runs after the fields are
-set up — including fields inherited from a base class.
+Fields are declared by assigning to `self` inside `new`.
 
-```jaipl
-class Point {
-    let x
-    let y
-    func new(x, y) { self.x = x; self.y = y }
-    func show() { return "(" + str(self.x) + ", " + str(self.y) + ")" }
-}
+---
 
-print(new Point(3, 4).show())          // (3, 4)
+## 13. Splitting a program across files
+
+Put helpers in a `.jai` file next to your main program:
+
+```jai
+// mathlib.jai
+func square(n) { return n * n }
+let VERSION = 1
 ```
 
-### Control flow
-
-```jaipl
-let score = 7
-if score > 10 { print("great") } elif score > 5 { print("ok") } else { print("low") }
-
-let steps = 0
-while steps < 3 {
-    print("step " + str(steps))
-    steps = steps + 1
-}
-
-for i in 0..5 { print(i) }             // 0 1 2 3 4
-for pet in ["Rex", "Sam"] { print(pet) }
+```jai
+// main.jai -- needs mathlib.jai beside it
+import mathlib
+print(square(7))    // 49
+print(VERSION)      // 1
 ```
 
-### Built-ins
+Anything in the file is available after the import. Names starting with `_`
+stay private to the module. Importing the same file twice loads it only once.
 
-`print` `len` `str` `int` `float` `input` `push` `pop` `range` `type` `has`
-`keys` `values` `sqrt` `exit` `clock`
+---
 
-Lists and maps carry methods: `.push` `.pop` `.len` `.contains` `.join`
-`.reverse` `.sort`, and maps carry `.keys` `.values` `.has`.
+## 14. Constants
 
-### Calling C++ from jaipl
+`PI`, `E` and `TAU` are built in:
 
 ```jaipl
+print(round(PI, 4))    // 3.1416
+print(round(PI * 2, 4))  // 6.2832
+```
+
+---
+
+## 15. Standard library reference
+
+**Math** `sin cos tan asin acos atan atan2 log log2 log10 exp floor ceil round abs min max sum pow sign sqrt`
+
+**Strings** `upper lower strip lstrip rstrip split join replace find starts_with ends_with contains repeat count ord chr is_empty`
+
+**Lists** `len push pop range(start, stop, step)`
+
+**Maps** `len keys values has`
+
+**Files** `open read read_line read_lines write write_line close file_exists list_dir remove_file`
+
+**Other** `print str int float type input exit clock`
+
+`min`, `max` and `sum` take either a list or loose arguments:
+
+```jaipl
+print(max([3, 9, 2]))    // 9
+print(max(3, 9, 2))      // 9
+```
+
+---
+
+## 16. Calling C++ (optional)
+
+```jai
 import gpp
-
-let r = gpp.run("""
-#include <iostream>
-int main() { std::cout << "from C++" << std::endl; }
-""")
-
-print(r.out)      // what the program printed
-print(r.code)     // 0 when it succeeded
+print(gpp.abs(-5))
 ```
 
-`gpp.compile(source)` checks code without running it, and `gpp.runFile(path)`
-compiles a real `.cpp` file. Programs are cached by source hash, so calling
-twice does not pay for `g++` twice.
+This shells out to a C++ compiler the first time. It is entirely optional — the
+language itself needs nothing but Python 3.11 or newer, and no network access.
 
-## Command line
+---
 
-```
-jaipl run FILE      run a program ('-' reads stdin)
-jaipl check FILE    check syntax without running
-jaipl fmt FILE      format the file in place
-jaipl repl          interactive prompt
-jaipl version       print the version
-```
+## What comes next
 
-## VS Code
-
-Install the **jaipl** extension. You get highlighting, snippets, F5 to run,
-Ctrl+Shift+B to check, formatting, and errors as red squiggles.
-
-Other editors: point your run command at `jaipl run <file>`. `jaipl check`
-exits `2` on a syntax error and prints `file:line:col: message`, which is
-easy to parse for linters in any editor.
-
-## License
-
-MIT.
+Not yet available: list and map comprehensions, `for i, value in` pairs,
+generators, nested functions and closures, context managers, sets, and
+decorators. Each is a planned addition; check the tests in `tests/` for the
+exact current state of the language.

@@ -27,7 +27,8 @@ from .parser import (
     Field as FieldDecl, For, FuncDecl, If, Import, Index, Let, ListLit,
     Literal, Logical, MapLit, MethodCall, New, Program, Return, SelfRef,
     Unary, Var, While,
-)
+    Catch,    Throw,    Try,
+    Parser,)
 
 
 class RuntimeError_(JaiError):
@@ -55,6 +56,35 @@ def _default_step_limit() -> int:
 
 
 # control-flow signals
+class FileHandle:
+    """An open file, referenced by jaipl code through a handle number."""
+
+    def __init__(self, handle_id, path, mode, stream):
+        self.id = handle_id
+        self.path = path
+        self.mode = mode
+        self.stream = stream
+
+
+class ThrowSignal(Exception):
+    """Carries a value raised by the ``throw`` statement."""
+
+    def __init__(self, value):
+        self.value = value
+        super().__init__(str(value))
+
+
+def error_type_name(exc) -> str:
+    """The name a program can write in a `catch` clause."""
+    if isinstance(exc, RuntimeError_):
+        return "RuntimeError"
+    # Compared by class name so this module needs no extra imports.
+    name = type(exc).__name__
+    if name == "ParseError":
+        return "SyntaxError"
+    return name
+
+
 class ReturnSignal(Exception):
     def __init__(self, value):
         self.value = value
@@ -224,6 +254,8 @@ class Interpreter:
 
     def __init__(self, out: Output | None = None, max_steps: int = 0):
         self.globals = Env()
+        self.source_dir = None
+        self._modules = {}
         self.out = out or Output()
         self.classes: dict[str, UserClass] = {}
         self.depth = 0
@@ -330,6 +362,280 @@ class Interpreter:
         def _clock():
             return time.monotonic()
 
+        # ---- files ------------------------------------------------
+        def _files():
+            if not hasattr(self, "_open_files"):
+                self._open_files = {}
+            return self._open_files
+
+        def _next_file_id():
+            files = _files()
+            return max(files) + 1 if files else 1
+
+        def _path_of(v, who):
+            if not isinstance(v, str):
+                raise RuntimeError_(f"{who} needs a path string")
+            return v
+
+        def _handle_of(v, who):
+            if not isinstance(v, FileHandle) or v.stream.closed:
+                raise RuntimeError_(f"{who} needs an open file handle")
+            return v
+
+        def _open(path, mode="r"):
+            path = _path_of(path, "open")
+            if mode not in ("r", "w", "a", "x"):
+                raise RuntimeError_(
+                    "open mode must be one of r, w, a, x")
+            try:
+                if mode == "x":
+                    stream = open(path, "x", encoding="utf-8")
+                else:
+                    stream = open(path, mode, encoding="utf-8")
+            except FileExistsError:
+                raise RuntimeError_(f"file already exists: {path}")
+            except FileNotFoundError:
+                raise RuntimeError_(f"no such file: {path}")
+            except IsADirectoryError:
+                raise RuntimeError_(f"{path} is a directory")
+            except PermissionError:
+                raise RuntimeError_(f"permission denied: {path}")
+            fh = FileHandle(_next_file_id(), path, mode, stream)
+            _files()[fh.id] = fh
+            return fh
+
+        def _read(fh, count=-1):
+            h = _handle_of(fh, "read")
+            if h.mode not in ("r", "x"):
+                raise RuntimeError_(f"file is open for {h.mode}, not reading")
+            try:
+                return h.stream.read() if count < 0 else h.stream.read(int(count))
+            except UnicodeDecodeError:
+                raise RuntimeError_("file is not valid utf-8 text")
+
+        def _read_line(fh):
+            h = _handle_of(fh, "read_line")
+            if h.mode not in ("r", "x"):
+                raise RuntimeError_(f"file is open for {h.mode}, not reading")
+            return h.stream.readline()
+
+        def _read_lines(fh):
+            h = _handle_of(fh, "read_lines")
+            if h.mode not in ("r", "x"):
+                raise RuntimeError_(f"file is open for {h.mode}, not reading")
+            return h.stream.readlines()
+
+        def _write(fh, text):
+            h = _handle_of(fh, "write")
+            if h.mode == "r":
+                raise RuntimeError_("file is open for reading, not writing")
+            if not isinstance(text, str):
+                raise RuntimeError_(
+                    f"write needs a string, got {self.type_name(text)}")
+            h.stream.write(text)
+            return len(text)
+
+        def _write_line(fh, text=""):
+            return _write(fh, _text(text, "write_line") + "\n")
+
+        def _close(fh):
+            h = _handle_of(fh, "close")
+            h.stream.close()
+            _files().pop(h.id, None)
+            return None
+
+        def _file_exists(path):
+            return Path(_path_of(path, "file_exists")).exists()
+
+        def _list_dir(path="."):
+            try:
+                return sorted(os.listdir(_path_of(path, "list_dir")))
+            except FileNotFoundError:
+                raise RuntimeError_(f"no such directory: {path}")
+            except PermissionError:
+                raise RuntimeError_(f"permission denied: {path}")
+
+        def _remove_file(path):
+            path = _path_of(path, "remove_file")
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                raise RuntimeError_(f"no such file: {path}")
+            except PermissionError:
+                raise RuntimeError_(f"permission denied: {path}")
+            return None
+
+        for name, fn in [
+            ("open", _open), ("read", _read), ("read_line", _read_line),
+            ("read_lines", _read_lines), ("write", _write),
+            ("write_line", _write_line), ("close", _close),
+            ("file_exists", _file_exists), ("list_dir", _list_dir),
+            ("remove_file", _remove_file),
+        ]:
+            g.define(name, NativeFn(name, fn))
+
+        # ---- math ------------------------------------------------
+        def _num(v, who):
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                raise RuntimeError_(f"{who} needs a number, got {self.type_name(v)}")
+            return float(v)
+
+        def _trig(fn):
+            def inner(v):
+                try:
+                    return fn(_num(v, "trig function"))
+                except ValueError:
+                    raise RuntimeError_(f"trig function out of range: {v}")
+            return inner
+
+        def _log(v):
+            x = _num(v, "log")
+            if x <= 0:
+                raise RuntimeError_(f"log needs a positive number, got {v}")
+            return math.log(x)
+
+        def _log2(v):
+            x = _num(v, "log2")
+            if x <= 0:
+                raise RuntimeError_(f"log2 needs a positive number, got {v}")
+            return math.log2(x)
+
+        def _exp(v):
+            try:
+                return math.exp(_num(v, "exp"))
+            except OverflowError:
+                raise RuntimeError_(f"exp is too large: {v}")
+
+        def _floor(v):
+            return math.floor(_num(v, "floor"))
+
+        def _ceil(v):
+            return math.ceil(_num(v, "ceil"))
+
+        def _round(v, places=0):
+            n = _num(v, "round")
+            digits = int(places)
+            if digits == 0:
+                return math.floor(n + 0.5) if n >= 0 else math.ceil(n - 0.5)
+            factor = 10.0 ** digits
+            scaled = n * factor
+            rounded = math.floor(scaled + 0.5) if scaled >= 0 else math.ceil(scaled - 0.5)
+            return rounded / factor
+
+        def _abs(v):
+            if not isinstance(v, (int, float)):
+                raise RuntimeError_(f"abs needs a number, got {self.type_name(v)}")
+            return -v if v < 0 else v
+
+        def _min(*a):
+            return min(self._flat(*a), key=lambda p: p[1])[1]
+
+        def _max(*a):
+            return max(self._flat(*a), key=lambda p: p[1])[1]
+
+        def _sum(*a):
+            total = 0
+            for _, v in self._flat(*a):
+                if isinstance(v, bool) or not isinstance(v, (int, float)):
+                    raise RuntimeError_(f"sum needs numbers, got {self.type_name(v)}")
+                total += v
+            return total
+
+        def _pow(a, b):
+            return _num(a, "pow") ** _num(b, "pow")
+
+        def _sign(v):
+            n = _num(v, "sign")
+            return 0 if n == 0 else (1 if n > 0 else -1)
+
+        # ---- strings ---------------------------------------------
+        def _text(v, who):
+            if not isinstance(v, str):
+                raise RuntimeError_(f"{who} needs a string, got {self.type_name(v)}")
+            return v
+
+        def _upper(v):
+            return _text(v, "upper").upper()
+
+        def _lower(v):
+            return _text(v, "lower").lower()
+
+        def _strip(v):
+            return _text(v, "strip").strip()
+
+        def _lstrip(v):
+            return _text(v, "lstrip").lstrip()
+
+        def _rstrip(v):
+            return _text(v, "rstrip").rstrip()
+
+        def _split(v, sep=None):
+            return _text(v, "split").split(sep)
+
+        def _join(parts, sep=""):
+            if not isinstance(parts, list):
+                raise RuntimeError_(
+                    f"join needs a list, got {self.type_name(parts)}")
+            for p in parts:
+                if not isinstance(p, str):
+                    raise RuntimeError_("join needs a list of strings")
+            return _text(sep, "join").join(parts)
+
+        def _replace(v, old, new):
+            return _text(v, "replace").replace(
+                _text(old, "replace"), _text(new, "replace"))
+
+        def _find(v, sub):
+            return _text(v, "find").find(_text(sub, "find"))
+
+        def _starts_with(v, sub):
+            return _text(v, "starts_with").startswith(_text(sub, "starts_with"))
+
+        def _ends_with(v, sub):
+            return _text(v, "ends_with").endswith(_text(sub, "ends_with"))
+
+        def _contains(v, sub):
+            return _text(sub, "contains") in _text(v, "contains")
+
+        def _repeat(v, times):
+            return _text(v, "repeat") * int(times)
+
+        def _is_empty(v):
+            return len(v) == 0
+
+        def _ord(v):
+            return ord(_text(v, "ord"))
+
+        def _chr(v):
+            return chr(int(v))
+
+        def _count(v, sub):
+            return _text(v, "count").count(_text(sub, "count"))
+
+        for name, fn in [
+            ("sin", _trig(math.sin)), ("cos", _trig(math.cos)),
+            ("tan", _trig(math.tan)), ("asin", _trig(math.asin)),
+            ("acos", _trig(math.acos)), ("atan", _trig(math.atan)),
+            ("atan2", math.atan2), ("log", _log), ("log2", _log2),
+            ("log10", lambda v: math.log10(_num(v, "log10"))),
+            ("exp", _exp), ("floor", _floor), ("ceil", _ceil),
+            ("round", _round), ("abs", _abs), ("min", _min),
+            ("max", _max), ("sum", _sum), ("pow", _pow), ("sign", _sign),
+            ("upper", _upper), ("lower", _lower), ("strip", _strip),
+            ("lstrip", _lstrip), ("rstrip", _rstrip), ("split", _split),
+            ("join", _join), ("replace", _replace), ("find", _find),
+            ("starts_with", _starts_with), ("ends_with", _ends_with),
+            ("contains", _contains), ("repeat", _repeat),
+            ("is_empty", _is_empty), ("ord", _ord), ("chr", _chr),
+            ("count", _count),
+        ]:
+            g.define(name, NativeFn(name, fn))
+
+        # Constants are plain values: the loop below wraps every entry in a
+        # NativeFn, which would turn these into functions.
+        for name, value in [("PI", math.pi), ("E", math.e), ("TAU", math.tau)]:
+            g.define(name, value)
+
         for name, fn in [
             ("print", _print), ("len", _len), ("str", _str), ("int", _int),
             ("float", _float), ("input", _input), ("push", _push),
@@ -338,6 +644,42 @@ class Interpreter:
             ("exit", _exit), ("clock", _clock),
         ]:
             g.define(name, NativeFn(name, fn))
+
+    def slice(self, target, start, stop, line):
+        """Return xs[start:stop], tolerating negatives and overruns."""
+        if isinstance(target, str):
+            # A slice of a string is a string, not a list of characters.
+            seq, is_text = list(target), True
+        elif isinstance(target, list):
+            seq, is_text = target, False
+        else:
+            raise RuntimeError_(
+                f"cannot slice a {self.type_name(target)}", line)
+        size = len(seq)
+
+        def norm(value):
+            if value is None:
+                return None
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise RuntimeError_(
+                    f"slice bounds must be whole numbers, got "
+                    f"{self.type_name(value)}", line)
+            if value < 0:
+                value += size
+            return max(0, min(size, value))
+
+        begin = norm(start) or 0
+        end = size if stop is None else norm(stop)
+        if end < begin:
+            end = begin
+        piece = seq[begin:end]
+        return "".join(piece) if is_text else piece
+
+    def _flat(self, *args):
+        """Accept min/max/sum over either a list or loose arguments."""
+        if len(args) == 1 and isinstance(args[0], list):
+            return [(i, v) for i, v in enumerate(args[0])]
+        return list(enumerate(args))
 
     # -- helpers ------------------------------------------------------
     def type_name(self, v) -> str:
@@ -429,6 +771,52 @@ class Interpreter:
         return cls
 
     # -- statements ---------------------------------------------------
+    def _exec_try(self, node, env: Env):
+        """Run a try block, routing a raised value to a matching handler.
+
+        Only genuine errors are caught. ReturnSignal, BreakSignal,
+        ContinueSignal and ExitSignal are control flow and must keep going.
+        """
+        try:
+            caught = None
+            try:
+                self.exec_stmt(node.body, Env(env))
+            except (ThrowSignal, JaiError) as exc:
+                caught = exc
+            except (IndexError, KeyError, TypeError, ValueError,
+                    ZeroDivisionError, AttributeError, OverflowError) as raw:
+                # Operations raise Python's own exceptions internally.
+                # Programs should only ever see jaipl errors, so they are
+                # wrapped here and catchable as RuntimeError like any other.
+                caught = RuntimeError_(f"{type(raw).__name__}: {raw}")
+
+            if caught is None:
+                if node.orelse is not None:
+                    self.exec_stmt(node.orelse, Env(env))
+            else:
+                for handler in node.handlers:
+                    name = getattr(handler, "type_name", "")
+                    if name and name != error_type_name(caught):
+                        continue
+                    inner = Env(env)
+                    if handler.name:
+                        # A thrown value is what the program asked to catch;
+                        # a runtime error arrives as its message.
+                        inner.assign_new(
+                            handler.name,
+                            caught.value if isinstance(caught, ThrowSignal)
+                            else str(caught),
+                        )
+                    self.exec_stmt(handler.body, inner)
+                    break
+                else:
+                    # No handler took it: the error keeps travelling up.
+                    raise caught
+        finally:
+            if node.finally_ is not None:
+                self.exec_stmt(node.finally_, Env(env))
+        return None
+
     def exec_stmt(self, node, env: Env):
         self.steps += 1
         if self.max_steps and self.steps > self.max_steps:
@@ -484,10 +872,16 @@ class Interpreter:
         if t is For:
             if node.stop is None:
                 items = self.eval(node.start, env)
+                # Maps iterate over their keys, strings over their
+                # characters -- matching how such values are usually wanted.
+                if isinstance(items, dict):
+                    items = list(items.keys())
+                elif isinstance(items, str):
+                    items = list(items)
                 if not isinstance(items, list):
                     raise RuntimeError_(
-                        "'for x in ...' needs a list or a range "
-                        "like 0..10",
+                        "'for x in ...' needs a list, a map, a string, "
+                        "or a range like 0..10",
                         node.line,
                     )
             else:
@@ -512,6 +906,12 @@ class Interpreter:
         if t is Continue:
             raise ContinueSignal()
 
+        if t is Throw:
+            raise ThrowSignal(self.eval(node.value, env))
+
+        if t is Try:
+            return self._exec_try(node, env)
+
         if t is Import:
             self.do_import(node, env)
             return None
@@ -534,9 +934,63 @@ class Interpreter:
 
             env.define("gpp", bridge.make_module())
             return
+
+        # A user module: import helpers  ->  helpers.jai next to the script.
+        path = self._resolve_module(name, node.line)
+        module = self._load_module(path, node.line)
+        for key in list(module.vars):
+            if not key.startswith("_"):
+                env.define(key, module.vars[key])
+
+    def _resolve_module(self, name: str, line: int) -> str:
+        """Find the .jai file backing a module name."""
+        base = str(self.source_dir) if self.source_dir else "."
+        candidates = [Path(base) / f"{name}.jai"]
+        raw = Path(name)
+        if raw.suffix == ".jai":
+            candidates.append(raw)
+        else:
+            candidates.append(Path(base) / name)
+        for cand in candidates:
+            if cand.is_file():
+                return str(cand)
+        # Installed packages, via `jaipl install`.
+        from . import pkg
+
+        entry = pkg.package_path(name)
+        if entry:
+            return entry
+        looked = ", ".join(str(c) for c in candidates)
         raise RuntimeError_(
-            f"unknown module {name!r}. Available modules: gpp", node.line
+            f"cannot find module {name!r}. Looked for: {looked}", line
         )
+
+    def _load_module(self, path: str, line: int):
+        """Parse and run a .jai module once, caching the result."""
+        cache = getattr(self, "_modules", None)
+        if cache is None:
+            cache = {}
+            self._modules = cache
+        if path in cache:
+            return cache[path]
+        try:
+            text = Path(path).read_text(encoding="utf-8")
+        except OSError as e:
+            raise RuntimeError_(f"cannot read module {path}: {e}", line)
+        try:
+            prog = Parser(text).parse()
+        except (JaiError, ValueError) as e:
+            raise RuntimeError_(f"in module {path}: {e}", line)
+        # Modules get their own scope but share the builtins.
+        module_env = Env(self.globals)
+        saved, self.source_dir = self.source_dir, Path(path).parent
+        try:
+            for stmt in prog.body:
+                self.exec_stmt(stmt, module_env)
+        finally:
+            self.source_dir = saved
+        cache[path] = module_env
+        return module_env
 
     # -- expressions --------------------------------------------------
     def eval(self, node, env: Env):
@@ -587,9 +1041,15 @@ class Interpreter:
             return self.assign(node, env)
 
         if t is Index:
-            return self.eval(node.target, env)[
-                self.index_key(self.eval(node.key, env), node.line)
-            ]
+            target = self.eval(node.target, env)
+            if node.is_slice:
+                return self.slice(
+                    target,
+                    None if node.key is None else self.eval(node.key, env),
+                    None if node.stop is None else self.eval(node.stop, env),
+                    node.line,
+                )
+            return target[self.index_key(self.eval(node.key, env), node.line)]
 
         if t is Attribute:
             return self.get_attr(self.eval(node.target, env), node.name, node.line)
@@ -962,11 +1422,22 @@ class Interpreter:
         raise RuntimeError_(f"{self.to_display(callee)} is not callable", line)
 
 
-def run_source(src: str, out: Output | None = None, max_steps: int = 0) -> Interpreter:
-    """Parse and run jaipl source. Convenience for tests and the CLI."""
+def run_source(
+    src: str,
+    out: Output | None = None,
+    max_steps: int = 0,
+    source_dir=None,
+) -> Interpreter:
+    """Parse and run jaipl source. Convenience for tests and the CLI.
+
+    source_dir tells the interpreter where `import` should look for .jai
+    files; the CLI sets it to the folder holding the script.
+    """
     from .parser import parse
 
     interp = Interpreter(out=out, max_steps=max_steps)
+    if source_dir is not None:
+        interp.source_dir = source_dir
     interp.run(parse(src))
     return interp
 
