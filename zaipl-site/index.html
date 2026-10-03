@@ -29,7 +29,7 @@
     <h1>A small language for<br>building things.</h1>
     <p class="lede">
       Plain text files. No build step. No toolchain to configure before your
-      first program runs. Write <code>.jai</code> in any editor and run it with
+      first program runs. Write <code>.zig</code> in any editor and run it with
       one command.
     </p>
 
@@ -58,11 +58,11 @@ print(new Dog("Rex").speak())</code></pre>
       <div class="card">
         <h3>Install</h3>
         <div class="cmdrow">
-          <code class="cmd" id="pkg-install">jai install mathx</code>
+          <code class="cmd" id="pkg-install">zing install mathx</code>
           <button class="copy" data-target="pkg-install">Copy</button>
         </div>
         <p class="fine">Installed into <code>~/.zing/packages</code>. Add
-        <code>--upgrade</code> to update, <code>jai list</code> to see what you
+        <code>--upgrade</code> to update, <code>zing list</code> to see what you
         have.</p>
       </div>
       <div class="card">
@@ -72,14 +72,14 @@ print(new Dog("Rex").speak())</code></pre>
 print(mathx.mean([1, 2, 3]))</code>
           <button class="copy" data-target="pkg-use">Copy</button>
         </div>
-        <p class="fine">A package is a folder of <code>.jai</code> files with a
+        <p class="fine">A package is a folder of <code>.zig</code> files with a
         <code>zing.json</code> manifest, so you can also install straight from
         a folder.</p>
       </div>
       <div class="card">
         <h3>Publish</h3>
         <div class="cmdrow">
-          <code class="cmd" id="pkg-pub">jai publish</code>
+          <code class="cmd" id="pkg-pub">zing publish</code>
           <button class="copy" data-target="pkg-pub">Copy</button>
         </div>
         <p class="fine">Uploads the package to the registry. The registry is
@@ -101,7 +101,7 @@ print(mathx.mean([1, 2, 3]))</code>
           <button class="copy" data-target="macos-cmd">Copy</button>
         </div>
         <p class="fine">Puts <code>zing</code> in <code>~/.local/bin</code>. Add
-        <code>--with-associate</code> to register <code>.jai</code> files with
+        <code>--with-associate</code> to register <code>.zig</code> files with
         your desktop.</p>
       </div>
 
