@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build jaipl-setup-<version>.exe. Needs the official Python embeddable zip
+# Build zing-setup-<version>.exe. Needs the official Python embeddable zip
 # and Inno Setup 6. Both are free downloads.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$here"
 
-VERSION="$(grep -oP 'AppVersion="\K[^"]+' jaipl.iss)"
+VERSION="$(grep -oP 'AppVersion="\K[^"]+' zing.iss)"
 
 if [ ! -d python-embed ]; then
   echo "==> fetching the embeddable Python runtime"
@@ -18,5 +18,5 @@ if [ ! -d python-embed ]; then
 fi
 
 echo "==> compiling the installer"
-iscc jaipl.iss
-echo "==> done: $here/../../dist/jaipl-setup-$VERSION.exe"
+iscc zing.iss
+echo "==> done: $here/../../dist/zing-setup-$VERSION.exe"

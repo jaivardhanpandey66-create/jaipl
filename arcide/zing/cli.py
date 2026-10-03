@@ -1,16 +1,16 @@
-"""jaipl command line.
+"""zing command line.
 
 This is the entry point that makes the language usable from any editor:
-every editor can run 'jaipl run game.jai', and the IDE just calls the same
+every editor can run 'zing run game.zig', and the IDE just calls the same
 thing. Nothing here imports GTK or anything outside the standard library,
 so the CLI runs on any machine with Python 3.11+.
 
 Commands:
-    jaipl run FILE     run a program (use - to read stdin)
-    jaipl check FILE   parse only, report problems, run nothing
-    jaipl fmt FILE     rewrite the file with canonical formatting
-    jaipl repl         interactive prompt
-    jaipl version      print the version
+    zing run FILE     run a program (use - to read stdin)
+    zing check FILE   parse only, report problems, run nothing
+    zing fmt FILE     rewrite the file with canonical formatting
+    zing repl         interactive prompt
+    zing version      print the version
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def _read_source(path: str) -> str:
         return sys.stdin.read()
     p = Path(path)
     if not p.exists():
-        raise SystemExit(f"jaipl: no such file: {path}")
+        raise SystemExit(f"zing: no such file: {path}")
     return p.read_text(encoding="utf-8")
 
 
@@ -80,7 +80,7 @@ def _report(err: Exception, path: str, text: str) -> int:
         if caret:
             print(caret, file=sys.stderr)
         print(
-            f"{_C['yellow']}jaipl: could not parse {path}"
+            f"{_C['yellow']}zing: could not parse {path}"
             f"{_C['off']}",
             file=sys.stderr,
         )
@@ -93,7 +93,7 @@ def _report(err: Exception, path: str, text: str) -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"{_C['red']}jaipl: {type(err).__name__}: {err}{_C['off']}",
+    print(f"{_C['red']}zing: {type(err).__name__}: {err}{_C['off']}",
           file=sys.stderr)
     return 1
 
@@ -122,7 +122,7 @@ def cmd_run(path: str, args: list[str], max_steps: int = 0) -> int:
         return _report(e, path, text)
     except RecursionError:
         print(
-            f"{_C['red']}jaipl: the program recursed too deeply for the "
+            f"{_C['red']}zing: the program recursed too deeply for the "
             f"interpreter{_C['off']}",
             file=sys.stderr,
         )
@@ -172,7 +172,7 @@ def cmd_fmt(path: str) -> int:
 def cmd_repl() -> int:
     interp = Interpreter(out=Output())
     print(
-        f"{_C['cyan']}jaipl {VERSION}{_C['off']} -- "
+        f"{_C['cyan']}zing {VERSION}{_C['off']} -- "
         f"type an expression, or 'quit' to leave"
     )
     buffer: list[str] = []
@@ -208,21 +208,21 @@ def cmd_repl() -> int:
             buffer = []
 
 
-USAGE = f"""{_C['bold']}jaipl {_C['off']} -- a small language for building things
+USAGE = f"""{_C['bold']}zing {_C['off']} -- a small language for building things
 
-  jaipl run FILE     run a program ('-' reads stdin)
-  jaipl check FILE   check syntax without running
-  jaipl fmt FILE     format the file in place
-  jaipl repl         interactive prompt
-  jaipl version      print the version
+  zing run FILE     run a program ('-' reads stdin)
+  zing check FILE   check syntax without running
+  zing fmt FILE     format the file in place
+  zing repl         interactive prompt
+  zing version      print the version
 
-  jaipl install NAME|PATH   install a package (also: jai install ...)
-  jaipl uninstall NAME     remove a package
-  jaipl list               list installed packages
-  jaipl search [TERM]       search the local registry
-  jaipl sync               install everything jaipl.json asks for
-  jaipl publish [FOLDER]   upload a package to the registry
-  jaipl config KEY VALUE   set registry URL or publish token
+  zing install NAME|PATH   install a package (also: jai install ...)
+  zing uninstall NAME     remove a package
+  zing list               list installed packages
+  zing search [TERM]       search the local registry
+  zing sync               install everything zing.json asks for
+  zing publish [FOLDER]   upload a package to the registry
+  zing config KEY VALUE   set registry URL or publish token
 """
 
 
@@ -259,7 +259,7 @@ def cmd_install(rest: list[str]) -> int:
     from . import pkg
 
     if not rest:
-        print(_C["red"] + "jaipl install: needs a package name or path" + _C["off"],
+        print(_C["red"] + "zing install: needs a package name or path" + _C["off"],
               file=sys.stderr)
         return 2
     try:
@@ -282,7 +282,7 @@ def cmd_install(rest: list[str]) -> int:
             continue
         # Record it in the project file, but only when standing inside an
         # actual project -- otherwise installing anywhere would drop a
-        # jaipl.json into that directory.
+        # zing.json into that directory.
         project = Path.cwd()
         if (project / pkg.PROJECT_FILE).is_file():
             try:
@@ -306,7 +306,7 @@ def cmd_uninstall(rest: list[str]) -> int:
     from . import pkg
 
     if not rest:
-        print(_C["red"] + "jaipl uninstall: needs a package name" + _C["off"],
+        print(_C["red"] + "zing uninstall: needs a package name" + _C["off"],
               file=sys.stderr)
         return 2
     bad = False
@@ -322,7 +322,7 @@ def cmd_uninstall(rest: list[str]) -> int:
             bad = True
             continue
         if gone:
-            print(f"removed {name}" + (" (dropped from jaipl.json)" if forgotten
+            print(f"removed {name}" + (" (dropped from zing.json)" if forgotten
                                       else ""))
         else:
             print(f"{name} was not installed")
@@ -335,7 +335,7 @@ def cmd_list(rest: list[str]) -> int:
     found = pkg.list_packages()
     if not found:
         print("no packages installed")
-        print(f"install one with: jaipl install <name-or-path>")
+        print(f"install one with: zing install <name-or-path>")
         return 0
     for manifest in found:
         name = manifest.get("name", "?")
@@ -463,7 +463,7 @@ def cmd_config(rest: list[str]) -> int:
 
 
 def cmd_sync(rest: list[str]) -> int:
-    """Install everything the project's jaipl.json asks for."""
+    """Install everything the project's zing.json asks for."""
     from . import pkg
 
     folder = Path(rest[0]).resolve() if rest else Path.cwd()
@@ -485,28 +485,28 @@ def main(argv: list[str] | None = None) -> int:
         print(USAGE)
         return 0
     if argv[0] in ("-v", "--version", "version"):
-        print(f"jaipl {VERSION}")
+        print(f"zing {VERSION}")
         return 0
 
     if argv[0] == "jai":
-        argv[0] = "jaipl"
+        argv[0] = "zing"
 
     cmd, rest = argv[0], argv[1:]
     if cmd == "run":
         if not rest:
-            print(_C["red"] + "jaipl run: needs a file" + _C["off"],
+            print(_C["red"] + "zing run: needs a file" + _C["off"],
                   file=sys.stderr)
             return 2
         return cmd_run(rest[0], rest[1:])
     if cmd == "check":
         if not rest:
-            print(_C["red"] + "jaipl check: needs a file" + _C["off"],
+            print(_C["red"] + "zing check: needs a file" + _C["off"],
                   file=sys.stderr)
             return 2
         return cmd_check(rest[0])
     if cmd == "fmt":
         if not rest:
-            print(_C["red"] + "jaipl fmt: needs a file" + _C["off"],
+            print(_C["red"] + "zing fmt: needs a file" + _C["off"],
                   file=sys.stderr)
             return 2
         return cmd_fmt(rest[0])
@@ -527,7 +527,7 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "config":
         return cmd_config(rest)
 
-    print(_C["red"] + f"jaipl: unknown command {cmd!r}" + _C["off"],
+    print(_C["red"] + f"zing: unknown command {cmd!r}" + _C["off"],
           file=sys.stderr)
     print(USAGE, file=sys.stderr)
     return 2

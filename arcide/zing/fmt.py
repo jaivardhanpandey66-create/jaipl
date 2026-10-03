@@ -1,8 +1,8 @@
-"""Minimal canonical formatter for jaipl.
+"""Minimal canonical formatter for zing.
 
 Not a pretty-printer: it only fixes what is objective -- indentation that
 matches brace depth, no trailing whitespace, exactly one trailing newline,
-and spaces after commas. Keeping it conservative means 'jaipl fmt' can never
+and spaces after commas. Keeping it conservative means 'zing fmt' can never
 change what a program means, which a real pretty-printer could.
 """
 

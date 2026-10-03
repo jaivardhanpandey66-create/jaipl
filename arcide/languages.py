@@ -40,9 +40,9 @@ def _run(file: str) -> str:
 
 LANGUAGES: tuple = (
     Language(
-        name="jaipl",
-        extensions=(".jai",),
-        run="jaipl run {file}",
+        name="zing",
+        extensions=(".zig",),
+        run="zing run {file}",
         keywords=(
             "let", "var", "func", "class", "extends", "new", "self", "if",
             "elif", "else", "while", "for", "in", "break", "continue",
@@ -50,7 +50,7 @@ LANGUAGES: tuple = (
         ),
         line_comment=("//",),
         block_comment=(),
-        internal="jaipl",
+        internal="zing",
     ),
     Language(
         name="C++",

@@ -346,7 +346,7 @@ class ArcIDEWindow(Gtk.ApplicationWindow):
             self._append_output("save the file before running it\n")
             return
         if editor.language.internal:
-            return self._run_jaipl(editor)
+            return self._run_zing(editor)
         if not editor.language.run:
             self._append_output(
                 f"{editor.language.name} files cannot be run\n"
@@ -394,20 +394,20 @@ class ArcIDEWindow(Gtk.ApplicationWindow):
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _run_jaipl(self, editor) -> None:
-        """Run a .jai file inside this process, so no jaipl on PATH needed."""
+    def _run_zing(self, editor) -> None:
+        """Run a .zig file inside this process, so no zing on PATH needed."""
         self.problems_store.clear()
         self._update_problem_count()
         self._show_panel("Output")
         self._set_running(True)
-        self._append_output(f"$ jaipl run {editor.display_name}\n\n")
+        self._append_output(f"$ zing run {editor.display_name}\n\n")
 
         def worker() -> None:
             import io
             import traceback
 
-            from ..jaipl.interp import Output as JaiOut
-            from ..jaipl.interp import run_source
+            from ..zing.interp import Output as JaiOut
+            from ..zing.interp import run_source
 
             buffer = io.StringIO()
 

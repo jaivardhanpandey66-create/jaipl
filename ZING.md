@@ -1,17 +1,17 @@
-# jaipl basics
+# zing basics
 
 A short tour of the language. Everything here is tested and working today.
 
 ```bash
-jaipl run program.jai     # run a file
-jaipl repl               # interactive prompt
+zing run program.zig     # run a file
+zing repl               # interactive prompt
 ```
 
 ---
 
 ## 1. Hello, world
 
-```jaipl
+```zig
 print("hello, world")
 ```
 
@@ -24,7 +24,7 @@ print("hello, world")
 `let` declares a name. Types are inferred, and there are no separate int/float
 types to fight — `3` and `3.0` both work, and mixing them is fine.
 
-```jaipl
+```zig
 let name = "jai"
 let count = 10
 let ratio = 0.75
@@ -38,7 +38,7 @@ Names ending in `_` are conventionally private to a module.
 
 Integers and floats are the same number type. Division always produces a float.
 
-```jaipl
+```zig
 print(7 / 2)        // 3.5
 print(7 + 2 * 3)    // 13
 print(10 % 3)       // 1
@@ -51,7 +51,7 @@ print(2.0 * 4)      // 8.0
 
 `elif` is spelled with an `e`. Blocks use braces.
 
-```jaipl
+```zig
 let n = 7
 if n < 5 {
     print("small")
@@ -68,7 +68,7 @@ if n < 5 {
 
 Three forms. Ranges use `0..10`, which excludes the upper bound.
 
-```jai
+```zig
 for i in 0..5 { print(i) }             // 0 1 2 3 4
 while x < 3 { print(x); x = x + 1 }    // while with a condition
 for item in [10, 20, 30] { print(item) }   // any list
@@ -76,7 +76,7 @@ for item in [10, 20, 30] { print(item) }   // any list
 
 `for` also walks maps (over their keys) and strings (over characters):
 
-```jaipl
+```zig
 for key in {"a": 1, "b": 2} { print(key) }   // a  b
 for ch in "abc" { print(ch) }                 // a  b  c
 ```
@@ -87,7 +87,7 @@ Use `break` to stop early and `continue` to skip one iteration.
 
 ## 6. Functions
 
-```jaipl
+```zig
 func add(a, b) {
     return a + b
 }
@@ -96,7 +96,7 @@ print(add(2, 3))
 
 Parameters can have defaults:
 
-```jaipl
+```zig
 func greet(name, greeting = "hello") {
     return greeting + ", " + name
 }
@@ -108,7 +108,7 @@ print(greet("jai", "hi"))      // hi, jai
 
 ## 7. Lists (arrays)
 
-```jaipl
+```zig
 let xs = [1, 2, 3]
 push(xs, 4)              // append
 print(len(xs))           // 4
@@ -118,7 +118,7 @@ print(pop(xs))           // 4, and removes it
 
 Slices work like Python's:
 
-```jaipl
+```zig
 let xs = [0, 1, 2, 3]
 print(xs[1:3])     // [1, 2]
 print(xs[:2])      // [0, 1]
@@ -130,7 +130,7 @@ print(xs[-2:])     // [2, 3]
 
 ## 8. Maps (dictionaries)
 
-```jaipl
+```zig
 let ages = {"jai": 20, "sam": 22}
 print(ages["jai"])            // 20
 print(has(ages, "sam"))       // true
@@ -143,12 +143,12 @@ for key in ages { print(key) }
 
 Double quotes. `+` joins strings.
 
-```jaipl
-let s = "jaipl"
-print(upper(s))              // JAIPL
+```zig
+let s = "zing"
+print(upper(s))              // ZING
 print(s[1:4])                // aip
 print(join(split("a,b,c", ","), " | "))   // a | b | c
-print(replace(s, "j", "J"))  // Jaipl
+print(replace(s, "j", "J"))  // Zing
 print(starts_with(s, "jai")) // true
 print(repeat("ab", 3))       // ababab
 ```
@@ -163,7 +163,7 @@ starts_with ends_with contains repeat count ord chr`.
 `try` runs a block. If something fails, a `catch` handles it; `finally` always
 runs. `else` runs only when nothing went wrong.
 
-```jaipl
+```zig
 try {
     let data = read(open("config.txt", "r"))
     print(data)
@@ -176,7 +176,7 @@ try {
 
 Raising your own error is `throw`:
 
-```jaipl
+```zig
 func check(age) {
     if age < 0 {
         throw "age cannot be negative"
@@ -187,7 +187,7 @@ func check(age) {
 
 A `catch` clause can filter by error name:
 
-```jaipl
+```zig
 try {
     let f = open("missing.txt", "r")
 } catch RuntimeError {
@@ -203,7 +203,7 @@ caught like any other.
 
 ## 11. Files
 
-```jaipl
+```zig
 let f = open("notes.txt", "w")
 write_line(f, "first line")
 close(f)
@@ -225,7 +225,7 @@ Modes: `r` read, `w` write (truncates), `a` append, `x` create only.
 
 ## 12. Classes and objects
 
-```jaipl
+```zig
 class Dog {
     func new(name) {
         self.name = name
@@ -245,7 +245,7 @@ subclasses but cannot be instantiated on its own.
 
 Inheritance uses `extends`, and methods can be overridden:
 
-```jaipl
+```zig
 class Animal {
     func new(name) { self.name = name }
     func speak() { return "..." }
@@ -264,16 +264,16 @@ Fields are declared by assigning to `self` inside `new`.
 
 ## 13. Splitting a program across files
 
-Put helpers in a `.jai` file next to your main program:
+Put helpers in a `.zig` file next to your main program:
 
-```jai
-// mathlib.jai
+```zig
+// mathlib.zig
 func square(n) { return n * n }
 let VERSION = 1
 ```
 
-```jai
-// main.jai -- needs mathlib.jai beside it
+```zig
+// main.zig -- needs mathlib.zig beside it
 import mathlib
 print(square(7))    // 49
 print(VERSION)      // 1
@@ -288,7 +288,7 @@ stay private to the module. Importing the same file twice loads it only once.
 
 `PI`, `E` and `TAU` are built in:
 
-```jaipl
+```zig
 print(round(PI, 4))    // 3.1416
 print(round(PI * 2, 4))  // 6.2832
 ```
@@ -311,7 +311,7 @@ print(round(PI * 2, 4))  // 6.2832
 
 `min`, `max` and `sum` take either a list or loose arguments:
 
-```jaipl
+```zig
 print(max([3, 9, 2]))    // 9
 print(max(3, 9, 2))      // 9
 ```
@@ -320,7 +320,7 @@ print(max(3, 9, 2))      // 9
 
 ## 16. Calling C++ (optional)
 
-```jai
+```zig
 import gpp
 print(gpp.abs(-5))
 ```

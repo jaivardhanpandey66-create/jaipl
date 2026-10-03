@@ -1,4 +1,4 @@
-"""jaipl parser: tokens -> AST.
+"""zing parser: tokens -> AST.
 
 Recursive descent, no dependencies, no lookahead beyond one token. Every
 error carries a line and column so the editor can jump to it and the CLI
@@ -493,7 +493,7 @@ class Parser:
         """Read a declared name.
 
         'new' is a keyword for instantiating, but it is also the name every
-        jaipl class uses for its constructor, so it is accepted here.
+        zing class uses for its constructor, so it is accepted here.
         """
         if self.at_kw("new"):
             return str(self.advance().value)

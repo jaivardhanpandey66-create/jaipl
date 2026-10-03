@@ -1,4 +1,4 @@
-"""A public registry server for jaipl packages.
+"""A public registry server for zing packages.
 
 Standard library only -- it runs anywhere Python 3.11 does, with nothing to
 install:
@@ -29,7 +29,7 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-MAX_UPLOAD = 10 * 1024 * 1024  # 10 MiB is plenty for a folder of .jai files
+MAX_UPLOAD = 10 * 1024 * 1024  # 10 MiB is plenty for a folder of .zig files
 NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
@@ -127,7 +127,7 @@ def build_zip(source: Path, name: str) -> bytes:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "jaipl-registry/1.0"
+    server_version = "zing-registry/1.0"
     registry: Registry
 
     # -- helpers --------------------------------------------------
@@ -156,7 +156,7 @@ class Handler(BaseHTTPRequestHandler):
         reg = self.registry
 
         if path in ("", "index.html"):
-            self._send_json(200, {"service": "jaipl registry", "packages": reg.index()})
+            self._send_json(200, {"service": "zing registry", "packages": reg.index()})
             return
 
         if parts[:2] == ["api", "packages"] and len(parts) == 2:
@@ -225,7 +225,7 @@ def serve(root: Path, port: int, token: str | None, host: str) -> None:
     handler = type("BoundHandler", (Handler,), {"registry": registry})
     httpd = ThreadingHTTPServer((host, port), handler)
     where = f"http://{'localhost' if host in ('0.0.0.0', '') else host}:{port}"
-    print(f"jaipl registry on {where}")
+    print(f"zing registry on {where}")
     print(f"  packages: {len(registry.index())}")
     print(f"  publishing: {'token required' if token else 'OPEN (no token)'}")
     try:
@@ -235,7 +235,7 @@ def serve(root: Path, port: int, token: str | None, host: str) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="jaipl package registry server")
+    ap = argparse.ArgumentParser(description="zing package registry server")
     ap.add_argument("--port", type=int, default=8777)
     ap.add_argument("--host", default="127.0.0.1",
                     help="use 0.0.0.0 to accept connections from anywhere")

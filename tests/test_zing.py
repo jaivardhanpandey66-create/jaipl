@@ -1,9 +1,9 @@
-"""Test suite for jaipl.
+"""Test suite for zing.
 
 Plain unittest, no dependencies, so it runs anywhere the language runs:
 
     python3 -m unittest discover -s tests -v
-    python3 tests/test_jaipl.py
+    python3 tests/test_zing.py
 """
 
 import io
@@ -14,14 +14,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from arcide.jaipl import cli, fmt
-from arcide.jaipl.interp import Output, RuntimeError_, run_source
-from arcide.jaipl.lexer import LexError, tokenize
-from arcide.jaipl.parser import ParseError, parse
+from arcide.zing import cli, fmt
+from arcide.zing.interp import Output, RuntimeError_, run_source
+from arcide.zing.lexer import LexError, tokenize
+from arcide.zing.parser import ParseError, parse
 
 
 def run(src):
-    """Run jaipl source, returning (printed_lines, error_or_None)."""
+    """Run zing source, returning (printed_lines, error_or_None)."""
     out = Output(write=lambda s: None)
     try:
         run_source(src, out=out)
@@ -277,23 +277,23 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(cli.main(["version"]), 0)
 
     def test_run_and_exit_code(self):
-        self.assertEqual(cli.main(["run", str(EXAMPLES / "shapes.jai")]), 0)
+        self.assertEqual(cli.main(["run", str(EXAMPLES / "shapes.zig")]), 0)
 
     def test_check_reports_ok(self):
-        self.assertEqual(cli.main(["check", str(EXAMPLES / "shapes.jai")]), 0)
+        self.assertEqual(cli.main(["check", str(EXAMPLES / "shapes.zig")]), 0)
 
     def test_unknown_command_is_an_error(self):
         self.assertEqual(cli.main(["nonsense"]), 2)
 
     def test_missing_file(self):
-        self.assertEqual(cli.main(["run", "/nope/missing.jai"]), 2)
+        self.assertEqual(cli.main(["run", "/nope/missing.zig"]), 2)
 
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 
 class TestDocs(unittest.TestCase):
-    """Every jaipl snippet in the reference must actually run.
+    """Every zing snippet in the reference must actually run.
 
     Documentation that drifts away from the language is worse than none, so
     the examples are executed rather than trusted.
@@ -302,13 +302,13 @@ class TestDocs(unittest.TestCase):
     def _blocks(self):
         import re
 
-        md = Path(__file__).resolve().parent.parent / "JAIPL.md"
+        md = Path(__file__).resolve().parent.parent / "ZING.md"
         if not md.exists():
-            self.skipTest("JAIPL.md is not present")
-        return re.findall(r"```jaipl\n(.*?)```", md.read_text(), re.S)
+            self.skipTest("ZING.md is not present")
+        return re.findall(r"```zig\n(.*?)```", md.read_text(), re.S)
 
     def test_reference_exists(self):
-        self.assertTrue(self._blocks(), "no jaipl examples found in JAIPL.md")
+        self.assertTrue(self._blocks(), "no zing examples found in ZING.md")
 
     def test_every_example_runs(self):
         for i, block in enumerate(self._blocks(), 1):
@@ -318,7 +318,7 @@ class TestDocs(unittest.TestCase):
                     run_source(block, out=out)
                 except Exception as e:  # noqa: BLE001 - want the real message
                     self.fail(
-                        f"JAIPL.md example {i} does not run: "
+                        f"ZING.md example {i} does not run: "
                         f"{type(e).__name__}: {e}\n---\n{block}"
                     )
 

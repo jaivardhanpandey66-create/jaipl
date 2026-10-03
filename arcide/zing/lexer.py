@@ -1,6 +1,6 @@
-"""jaipl lexer.
+"""zing lexer.
 
-Pure Python, no dependencies. ``.jai`` files.
+Pure Python, no dependencies. ``.zig`` files.
 
 Design goal for the whole language is "easy as fuck", so the token set is
 small and the keywords are the obvious words. Nothing here is clever; the
@@ -51,7 +51,7 @@ class Token:
 
 
 class JaiError(Exception):
-    """Base for every error jaipl raises, with a source position."""
+    """Base for every error zing raises, with a source position."""
 
 
 class LexError(JaiError):

@@ -1,11 +1,11 @@
-"""Tests for the jaipl package manager and the registry server.
+"""Tests for the zing package manager and the registry server.
 
 The registry tests run a real server on a real port, so the network path is
-covered rather than mocked. Each test gets its own JAIPL_HOME so nothing
+covered rather than mocked. Each test gets its own ZING_HOME so nothing
 leaks between them:
 
     python3 -m unittest discover -s tests -v
-    python3 tests/test_jaipl_pkg.py
+    python3 tests/test_zing_pkg.py
 """
 
 import base64
@@ -21,8 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from arcide.jaipl import pkg
-from arcide.jaipl.interp import Output, run_source
+from arcide.zing import pkg
+from arcide.zing.interp import Output, run_source
 from tools.registry_server import Registry, build_zip
 
 
@@ -53,7 +53,7 @@ def make_package(folder: Path, name: str, version: str = "1.0.0",
     if requires:
         manifest["requires"] = requires
     (folder / pkg.MANIFEST).write_text(json.dumps(manifest, indent=2))
-    (folder / f"{name}.jai").write_text(
+    (folder / f"{name}.zig").write_text(
         body if body is not None
         else f"func {name}_value() {{ return 42 }}\n")
     return folder
@@ -66,17 +66,17 @@ class PkgTestCase(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.home = Path(self.tmp.name)
-        self._old_home = os.environ.get("JAIPL_HOME")
-        os.environ["JAIPL_HOME"] = str(self.home / "jaipl-home")
+        self._old_home = os.environ.get("ZING_HOME")
+        os.environ["ZING_HOME"] = str(self.home / "zing-home")
         self.addCleanup(self._restore_home)
         self.work = self.home / "work"
         self.work.mkdir()
 
     def _restore_home(self):
         if self._old_home is None:
-            os.environ.pop("JAIPL_HOME", None)
+            os.environ.pop("ZING_HOME", None)
         else:
-            os.environ["JAIPL_HOME"] = self._old_home
+            os.environ["ZING_HOME"] = self._old_home
 
     def registry_manifest(self, name: str) -> dict:
         return json.loads(
@@ -145,7 +145,7 @@ class InstallFromFolder(PkgTestCase):
         make_package(self.work / "mathx", "mathx")
         name, action = pkg.install(str(self.work / "mathx"))
         self.assertEqual((name, action), ("mathx", "installed"))
-        self.assertTrue((pkg.installed_dir("mathx") / "mathx.jai").is_file())
+        self.assertTrue((pkg.installed_dir("mathx") / "mathx.zig").is_file())
 
     def test_import_works_both_qualified_and_bare(self):
         make_package(self.work / "mathx", "mathx")
@@ -191,7 +191,7 @@ class InstallFromFolder(PkgTestCase):
         self.assertEqual(pkg.install(str(self.work / "m"))[1], "installed")
 
     def test_manifest_pointing_at_missing_file_is_caught_at_install(self):
-        folder = make_package(self.work / "m", "m", main="nope.jai")
+        folder = make_package(self.work / "m", "m", main="nope.zig")
         with self.assertRaises(pkg.PackageError) as ctx:
             pkg.install(str(folder))
         self.assertIn("missing file", str(ctx.exception))
@@ -239,7 +239,7 @@ class UninstallAndList(PkgTestCase):
 class ProjectFile(PkgTestCase):
     def test_add_dependency_writes_json(self):
         path = pkg.add_dependency(self.work, "mathx")
-        self.assertEqual(path.name, "jaipl.json")
+        self.assertEqual(path.name, "zing.json")
         data = json.loads(path.read_text())
         self.assertIn("mathx", data["dependencies"])
 
@@ -392,11 +392,11 @@ class RegistryServer(PkgTestCase):
 
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("evil/../../escaped.jai", "func x() { return 1 }")
+            zf.writestr("evil/../../escaped.zig", "func x() { return 1 }")
         blob = buf.getvalue()
         registry = self.registry
         meta = {"name": "evil", "version": "1.0.0",
-                "main": "evil.jai"}
+                "main": "evil.zig"}
         import hashlib
 
         record = registry.publish(meta, blob)

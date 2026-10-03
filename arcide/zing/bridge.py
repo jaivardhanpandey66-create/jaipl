@@ -1,6 +1,6 @@
-"""Run C++ from inside jaipl.
+"""Run C++ from inside zing.
 
-jaipl is meant to be usable from any editor on any machine, so the bridge
+zing is meant to be usable from any editor on any machine, so the bridge
 shells out to the system g++ rather than linking against a toolchain library.
 That means it works wherever g++ is installed, and it fails with a clear
 message everywhere else.
@@ -28,9 +28,9 @@ from .parser import Call, Import, Var
 
 CACHE_DIR = Path(
     os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")
-) / "jaipl" / "gpp"
+) / "zing" / "gpp"
 
-_TIMEOUT = float(os.environ.get("JAIPL_CPP_TIMEOUT", "30"))
+_TIMEOUT = float(os.environ.get("ZING_CPP_TIMEOUT", "30"))
 
 
 def find_compiler() -> str | None:

@@ -1,9 +1,9 @@
-"""Tests for the jaipl standard library, exceptions, slicing and imports.
+"""Tests for the zing standard library, exceptions, slicing and imports.
 
 Runs anywhere the language runs:
 
     python3 -m unittest discover -s tests -v
-    python3 tests/test_jaipl_stdlib.py
+    python3 tests/test_zing_stdlib.py
 """
 
 import sys
@@ -13,13 +13,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from arcide.jaipl.interp import Output, RuntimeError_, run_source
-from arcide.jaipl.lexer import LexError
-from arcide.jaipl.parser import ParseError
+from arcide.zing.interp import Output, RuntimeError_, run_source
+from arcide.zing.lexer import LexError
+from arcide.zing.parser import ParseError
 
 
 def run(src, source_dir=None):
-    """Run jaipl source, returning (printed_lines, error_or_None)."""
+    """Run zing source, returning (printed_lines, error_or_None)."""
     out = Output(write=lambda s: None)
     try:
         run_source(src, out=out, source_dir=source_dir)
@@ -118,10 +118,10 @@ class StringBuiltins(unittest.TestCase):
         self.assertEqual(expr('upper(replace("hi", "h", "j"))'), "JI")
 
     def test_search(self):
-        self.assertEqual(expr('find("jaipl", "pl")'), "3")
-        self.assertEqual(expr('find("jaipl", "zz")'), "-1")
-        self.assertEqual(expr('starts_with("jaipl", "jai")'), "true")
-        self.assertEqual(expr('ends_with("jaipl", "pl")'), "true")
+        self.assertEqual(expr('find("zing", "in")'), "1")
+        self.assertEqual(expr('find("zing", "zz")'), "-1")
+        self.assertEqual(expr('starts_with("zing", "jai")'), "true")
+        self.assertEqual(expr('ends_with("zing", "pl")'), "true")
         self.assertEqual(expr('contains("hello", "ell")'), "true")
         self.assertEqual(expr('count("cheese", "e")'), "3")
 
@@ -190,8 +190,8 @@ class Slicing(unittest.TestCase):
         self.assertEqual(printed(self.lit + "print(xs[-1])")[0], "5")
 
     def test_string_slicing(self):
-        self.assertEqual(expr('"jaipl"[1:4]'), "aip")
-        self.assertEqual(expr('"jaipl"[0:1] + "jaipl"[4:5]'), "jl")
+        self.assertEqual(expr('"zing"[1:4]'), "ing")
+        self.assertEqual(expr('"zing"[0:1] + "zing"[4:5]'), "z")
 
     def test_bad_bounds_are_rejected(self):
         err = fails(self.lit + 'print(xs[1.5:2])')
@@ -368,47 +368,47 @@ class Modules(unittest.TestCase):
         return str(path)
 
     def test_functions_cross_files(self):
-        self.write("mathlib.jai", "func square(n) { return n * n }")
-        main = self.write("main.jai", "import mathlib\nprint(square(7))")
+        self.write("mathlib.zig", "func square(n) { return n * n }")
+        main = self.write("main.zig", "import mathlib\nprint(square(7))")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["49"])
 
     def test_module_scope_is_isolated_but_sees_builtins(self):
-        self.write("lib.jai", "func helper() { return PI }")
-        main = self.write("main.jai", "import lib\nprint(round(helper(), 4))")
+        self.write("lib.zig", "func helper() { return PI }")
+        main = self.write("main.zig", "import lib\nprint(round(helper(), 4))")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["3.1416"])
 
     def test_module_toplevel_values_are_shared(self):
-        self.write("consts.jai", "let LIMIT = 3 * 7")
-        main = self.write("main.jai", "import consts\nprint(LIMIT)")
+        self.write("consts.zig", "let LIMIT = 3 * 7")
+        main = self.write("main.zig", "import consts\nprint(LIMIT)")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["21"])
 
     def test_underscore_names_stay_private(self):
-        self.write("lib.jai", "let _secret = 1\nfunc open_one() { return 2 }")
-        main = self.write("main.jai", "import lib\nprint(open_one())")
+        self.write("lib.zig", "let _secret = 1\nfunc open_one() { return 2 }")
+        main = self.write("main.zig", "import lib\nprint(open_one())")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["2"])
 
     def test_a_module_is_loaded_once(self):
         # Importing twice must not run the module body again.
-        self.write("once.jai", 'print("module loaded")\nfunc helper() { return 1 }')
-        main = self.write("main.jai", "import once\nimport once\nhelper()")
+        self.write("once.zig", 'print("module loaded")\nfunc helper() { return 1 }')
+        main = self.write("main.zig", "import once\nimport once\nhelper()")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["module loaded"])
 
     def test_missing_module_lists_what_was_tried(self):
-        main = self.write("main.jai", "import nosuchmodule")
+        main = self.write("main.zig", "import nosuchmodule")
         err = fails(open(main).read(), source_dir=self.root)
         self.assertIn("cannot find module", str(err))
-        self.assertIn("nosuchmodule.jai", str(err))
+        self.assertIn("nosuchmodule.zig", str(err))
 
     def test_broken_module_reports_the_file(self):
-        self.write("bad.jai", "func oops( { }")
-        main = self.write("main.jai", "import bad")
+        self.write("bad.zig", "func oops( { }")
+        main = self.write("main.zig", "import bad")
         err = fails(open(main).read(), source_dir=self.root)
-        self.assertIn("bad.jai", str(err))
+        self.assertIn("bad.zig", str(err))
 
 
 if __name__ == "__main__":

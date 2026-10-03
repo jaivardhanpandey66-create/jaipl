@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Installs jaipl on Windows. No administrator rights needed.
+    Installs zing on Windows. No administrator rights needed.
 
 .DESCRIPTION
-    Downloads the Python runtime and the jaipl source into your user profile,
-    creates a `jaipl` command, and adds it to your PATH.
+    Downloads the Python runtime and the zing source into your user profile,
+    creates a `zing` command, and adds it to your PATH.
 
     Nothing is installed system-wide, and nothing outside your user profile is
     touched, so it can be removed by deleting one folder.
@@ -12,7 +12,7 @@
 .EXAMPLE
     Paste this into PowerShell:
 
-    iwr https://raw.githubusercontent.com/jaivardhanpandey66-create/jaipl/main/install.ps1 -useb | iex
+    iwr https://raw.githubusercontent.com/jaivardhanpandey66-create/zing/main/install.ps1 -useb | iex
 
 .EXAMPLE
     From a checkout:
@@ -22,22 +22,22 @@
 
 $ErrorActionPreference = 'Stop'
 
-# Keep the same Python release as everywhere else: jaipl needs 3.11 or newer
+# Keep the same Python release as everywhere else: zing needs 3.11 or newer
 # and nothing newer than that.
 $PythonVersion = '3.11.9'
 $PythonZip    = "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-embed-amd64.zip"
-$SourceZip    = 'https://github.com/jaivardhanpandey66-create/jaipl/archive/refs/heads/main.zip'
+$SourceZip    = 'https://github.com/jaivardhanpandey66-create/zing/archive/refs/heads/main.zip'
 
-$Root = Join-Path $env:LOCALAPPDATA 'jaipl'
-$Bin  = Join-Path $env:LOCALAPPDATA 'Programs\jaipl'
+$Root = Join-Path $env:LOCALAPPDATA 'zing'
+$Bin  = Join-Path $env:LOCALAPPDATA 'Programs\zing'
 
 function Write-Step($message) {
     Write-Host "==> $message" -ForegroundColor Cyan
 }
 
 function Fail($message) {
-    Write-Host "jaipl installer: $message" -ForegroundColor Red
-    Write-Host "See https://github.com/jaivardhanpandey66-create/jaipl for help." -ForegroundColor Red
+    Write-Host "zing installer: $message" -ForegroundColor Red
+    Write-Host "See https://github.com/jaivardhanpandey66-create/zing for help." -ForegroundColor Red
     exit 1
 }
 
@@ -109,7 +109,7 @@ if ($systemPython) {
     }
 
     # The embeddable build ignores everything outside its ._pth file, so the
-    # jaipl source has to be named there or `import arcide` cannot work.
+    # zing source has to be named there or `import arcide` cannot work.
     $pth = Get-ChildItem -Path $pythonDir -Filter 'python*._pth' | Select-Object -First 1
     if ($pth) {
         $lines = @(
@@ -119,31 +119,31 @@ if ($systemPython) {
             $Root
         )
         Set-Content -Path $pth.FullName -Value $lines -Encoding ASCII
-        Write-Step 'configured the Python path for jaipl'
+        Write-Step 'configured the Python path for zing'
     }
 }
 
-# ------------------------------------------------------------ jaipl source
+# ------------------------------------------------------------ zing source
 
-$srcZip = Join-Path $env:TEMP 'jaipl-source.zip'
-Write-Step 'downloading jaipl'
+$srcZip = Join-Path $env:TEMP 'zing-source.zip'
+Write-Step 'downloading zing'
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $SourceZip -OutFile $srcZip -UseBasicParsing
 } catch {
-    Fail "could not download jaipl: $($_.Exception.Message)"
+    Fail "could not download zing: $($_.Exception.Message)"
 }
 
-$staging = Join-Path $env:TEMP 'jaipl-staging'
+$staging = Join-Path $env:TEMP 'zing-staging'
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
 try {
     Expand-Zip $srcZip $staging
 } catch {
-    Fail "could not unpack jaipl: $($_.Exception.Message)"
+    Fail "could not unpack zing: $($_.Exception.Message)"
 }
 Remove-Item $srcZip -Force -ErrorAction SilentlyContinue
 
-# GitHub archives unpack into jaipl-main/; copy the contents, not the wrapper.
+# GitHub archives unpack into zing-main/; copy the contents, not the wrapper.
 $inner = Get-ChildItem -Path $staging -Directory | Select-Object -First 1
 if (-not $inner) { Fail 'the downloaded archive looked empty.' }
 
@@ -162,28 +162,28 @@ Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
 
 # ---------------------------------------------------------------- launcher
 
-Write-Step 'creating the jaipl command'
+Write-Step 'creating the zing command'
 New-Item -ItemType Directory -Path $Bin -Force | Out-Null
-$cmdPath = Join-Path $Bin 'jaipl.cmd'
+$cmdPath = Join-Path $Bin 'zing.cmd'
 
 @"
 @echo off
-REM jaipl launcher for Windows. Keeps the window open on error so the
+REM zing launcher for Windows. Keeps the window open on error so the
 REM message is readable, which matters when a beginner runs a broken file.
 setlocal
 set "HERE=%~dp0"
-set "HOME=%LOCALAPPDATA%\jaipl"
-if exist "%HERE%..\..\jaipl\python\python.exe" (
-    set "JAIPL_PY=%HERE%..\..\jaipl\python\python.exe"
+set "HOME=%LOCALAPPDATA%\zing"
+if exist "%HERE%..\..\zing\python\python.exe" (
+    set "ZING_PY=%HERE%..\..\zing\python\python.exe"
 ) else (
-    set "JAIPL_PY=$pythonExe"
+    set "ZING_PY=$pythonExe"
 )
 set "PYTHONPATH=%HOME%"
-"%JAIPL_PY%" -m arcide.jaipl.cli %*
+"%ZING_PY%" -m arcide.zing.cli %*
 set "CODE=%ERRORLEVEL%"
 if not "%CODE%"=="0" (
     echo.
-    echo jaipl exited with code %CODE%
+    echo zing exited with code %CODE%
     pause
 )
 exit /b %CODE%
@@ -197,9 +197,9 @@ if ($userPath) { $parts = $userPath -split ';' | Where-Object { $_ } }
 if ($parts -notcontains $Bin) {
     [Environment]::SetEnvironmentVariable('Path', (($parts + $Bin) -join ';'), 'User')
     $env:Path = "$env:Path;$Bin"
-    Write-Step 'added jaipl to your PATH (restart the terminal to pick it up)'
+    Write-Step 'added zing to your PATH (restart the terminal to pick it up)'
 } else {
-    Write-Step 'jaipl is already on your PATH'
+    Write-Step 'zing is already on your PATH'
 }
 
 # ----------------------------------------------------------------- verify
@@ -214,8 +214,8 @@ Write-Host ""
 Write-Host "  $version" -ForegroundColor Green
 Write-Host ""
 Write-Host 'Try this:' -ForegroundColor Gray
-Write-Host '  jaipl repl'
-Write-Host '  jaipl run hello.jai'
+Write-Host '  zing repl'
+Write-Host '  zing run hello.zig'
 Write-Host ''
 Write-Host "Files are in $Root" -ForegroundColor Gray
 Write-Host 'To uninstall, delete that folder and remove it from your PATH.' -ForegroundColor Gray

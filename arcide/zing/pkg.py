@@ -1,24 +1,24 @@
-"""Package manager for jaipl.
+"""Package manager for zing.
 
-A package is an ordinary folder holding .jai files plus a `jaipl.json`
+A package is an ordinary folder holding .zig files plus a `zing.json`
 manifest:
 
     {
       "name": "mathx",
       "version": "0.1.0",
       "description": "extra maths helpers",
-      "main": "mathx.jai",
+      "main": "mathx.zig",
       "requires": ["jsonpack >=0.1"]
     }
 
-Packages install into ~/.jaipl/packages/<name>/ and are then importable by
+Packages install into ~/.zing/packages/<name>/ and are then importable by
 name from any program:
 
     import mathx
     print(mathx.mean([1, 2, 3]))
 
 There is no network registry yet -- `search` looks in the local registry
-folder ~/.jaipl/registry/, and `install` also takes a path. This keeps every
+folder ~/.zing/registry/, and `install` also takes a path. This keeps every
 command honest: nothing pretends to reach a server that does not exist.
 """
 
@@ -29,7 +29,7 @@ import re
 import shutil
 from pathlib import Path
 
-MANIFEST = "jaipl.json"
+MANIFEST = "zing.json"
 
 
 class PackageError(Exception):
@@ -37,10 +37,10 @@ class PackageError(Exception):
 
 
 def home() -> Path:
-    """The jaipl home folder, honouring JAIPL_HOME for tests and sandboxes."""
+    """The zing home folder, honouring ZING_HOME for tests and sandboxes."""
     import os
 
-    return Path(os.environ.get("JAIPL_HOME", Path.home() / ".jaipl"))
+    return Path(os.environ.get("ZING_HOME", Path.home() / ".zing"))
 
 
 def packages_dir() -> Path:
@@ -104,7 +104,7 @@ def load_installed(name: str) -> dict | None:
 def find_entry(name: str, manifest: dict) -> str:
     """The file `import <name>` should load.
 
-    The manifest's "main" wins, but a same-named .jai file is accepted too so
+    The manifest's "main" wins, but a same-named .zig file is accepted too so
     a one-file package does not need a manifest to be importable.
     """
     main = manifest.get("main")
@@ -115,12 +115,12 @@ def find_entry(name: str, manifest: dict) -> str:
                 f"package {name!r} points at a missing file: {main}"
             )
         return str(candidate)
-    default = installed_dir(name) / f"{name}.jai"
+    default = installed_dir(name) / f"{name}.zig"
     if default.is_file():
         return str(default)
     raise PackageError(
         f"package {name!r} has no {MANIFEST} \"main\" entry and no "
-        f"{name}.jai file"
+        f"{name}.zig file"
     )
 
 
@@ -290,7 +290,7 @@ def package_path(name: str) -> str | None:
 
 # ------------------------------------------------------------- project file
 
-PROJECT_FILE = "jaipl.json"
+PROJECT_FILE = "zing.json"
 
 
 def read_project(folder: Path) -> dict | None:
@@ -313,7 +313,7 @@ def write_project(folder: Path, data: dict) -> Path:
 
 
 def add_dependency(folder: Path, name: str, version: str = "*") -> Path:
-    """Record a dependency in the project's jaipl.json."""
+    """Record a dependency in the project's zing.json."""
     project = read_project(folder) or {"name": folder.name, "version": "0.1.0"}
     deps = project.setdefault("dependencies", {})
     if name in deps and deps[name] != version:
@@ -332,7 +332,13 @@ def sync(folder: Path) -> tuple[list[str], list[str]]:
     installed, missing = [], []
     for name, want in (project.get("dependencies") or {}).items():
         try:
-            install(name, upgrade=True)
+            # A local folder or the local registry wins, so a package being
+            # developed here shadows the published one. Only if there is no
+            # local copy do we go to the network.
+            try:
+                install(name, upgrade=True)
+            except PackageError:
+                install_from_registry(name, upgrade=True)
         except PackageError:
             missing.append(f"{name} {want}".strip())
             continue
@@ -344,7 +350,7 @@ def sync(folder: Path) -> tuple[list[str], list[str]]:
 
 # ------------------------------------------------------------------ remote
 
-DEFAULT_REGISTRY = "https://jaipl.jaipl.dev"
+DEFAULT_REGISTRY = "https://zing.zing.dev"
 
 
 def config_path():
@@ -413,7 +419,7 @@ def _request(path: str, payload: dict | None = None, timeout: float = 20.0,
     base_url, saved_token = _resolve(registry, token)
     url = base_url + path
     data = None
-    headers = {"Accept": "application/json", "User-Agent": "jaipl-pkg"}
+    headers = {"Accept": "application/json", "User-Agent": "zing-pkg"}
     if payload is not None:
         import base64
 
@@ -438,7 +444,7 @@ def _request(path: str, payload: dict | None = None, timeout: float = 20.0,
         raise PackageError(
             f"cannot reach the registry at {url}: {e.reason}\n"
             f"check your connection, or point elsewhere with:\n"
-            f"  jaipl config registry <url>"
+            f"  zing config registry <url>"
         ) from None
     except TimeoutError:
         raise PackageError(f"the registry at {url} timed out") from None
@@ -457,7 +463,7 @@ def _request_bytes(path: str, timeout: float = 60.0,
     base_url, _ = _resolve(registry, token)
     url = base_url + path
     req = urllib.request.Request(
-        url, headers={"User-Agent": "jaipl-pkg", "Accept": "application/zip"}
+        url, headers={"User-Agent": "zing-pkg", "Accept": "application/zip"}
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -568,7 +574,7 @@ def publish(folder: Path, registry: str = None, token: str = None):
 
 # ---------------------------------------------------------------- the lockfile
 
-LOCK_FILE = "jaipl.lock"
+LOCK_FILE = "zing.lock"
 
 
 def write_lock(folder: Path) -> Path:
@@ -581,7 +587,7 @@ def write_lock(folder: Path) -> Path:
     for name in installed_names():
         manifest = load_installed(name) or {"name": name}
         digest = ""
-        main = manifest.get("main") or f"{name}.jai"
+        main = manifest.get("main") or f"{name}.zig"
         target = installed_dir(name) / str(main)
         if target.is_file():
             import hashlib

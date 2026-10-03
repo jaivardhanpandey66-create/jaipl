@@ -1,4 +1,4 @@
-"""jaipl runtime: a tree-walking interpreter.
+"""zing runtime: a tree-walking interpreter.
 
 Pure Python, no dependencies.
 
@@ -33,7 +33,7 @@ from .parser import (
 
 
 class RuntimeError_(JaiError):
-    """A jaipl-level error (as opposed to a lexer/parser error)."""
+    """A zing-level error (as opposed to a lexer/parser error)."""
 
     def __init__(self, msg: str, line: int = 0):
         super().__init__(f"line {line}: {msg}" if line else msg)
@@ -44,10 +44,10 @@ class RuntimeError_(JaiError):
 def _default_step_limit() -> int:
     """How many statements run before an infinite loop is called out.
 
-    Overridable with JAIPL_MAX_STEPS, and 0 disables the check entirely for
+    Overridable with ZING_MAX_STEPS, and 0 disables the check entirely for
     genuinely long-running programs.
     """
-    raw = os.environ.get("JAIPL_MAX_STEPS", "")
+    raw = os.environ.get("ZING_MAX_STEPS", "")
     if raw.strip():
         try:
             return int(raw)
@@ -58,7 +58,7 @@ def _default_step_limit() -> int:
 
 # control-flow signals
 class FileHandle:
-    """An open file, referenced by jaipl code through a handle number."""
+    """An open file, referenced by zing code through a handle number."""
 
     def __init__(self, handle_id, path, mode, stream):
         self.id = handle_id
@@ -248,7 +248,7 @@ class Output:
 
 
 class Interpreter:
-    # Each jaipl call frame costs several Python frames, so Python's own
+    # Each zing call frame costs several Python frames, so Python's own
     # limit has to sit well above this one or a legitimate deep recursion
     # dies as a RecursionError instead of the clear message below.
     MAX_DEPTH = 300
@@ -828,7 +828,7 @@ class Interpreter:
             except (IndexError, KeyError, TypeError, ValueError,
                     ZeroDivisionError, AttributeError, OverflowError) as raw:
                 # Operations raise Python's own exceptions internally.
-                # Programs should only ever see jaipl errors, so they are
+                # Programs should only ever see zing errors, so they are
                 # wrapped here and catchable as RuntimeError like any other.
                 caught = RuntimeError_(f"{type(raw).__name__}: {raw}")
 
@@ -982,7 +982,7 @@ class Interpreter:
             env.define("gpp", bridge.make_module())
             return
 
-        # A user module: import helpers  ->  helpers.jai next to the script.
+        # A user module: import helpers  ->  helpers.zig next to the script.
         path = self._resolve_module(name, node.line)
         module = self._load_module(path, node.line)
         exports = {k: v for k, v in module.vars.items()
@@ -995,18 +995,18 @@ class Interpreter:
             env.define(key, value)
 
     def _resolve_module(self, name: str, line: int) -> str:
-        """Find the .jai file backing a module name."""
+        """Find the .zig file backing a module name."""
         base = str(self.source_dir) if self.source_dir else "."
-        candidates = [Path(base) / f"{name}.jai"]
+        candidates = [Path(base) / f"{name}.zig"]
         raw = Path(name)
-        if raw.suffix == ".jai":
+        if raw.suffix == ".zig":
             candidates.append(raw)
         else:
             candidates.append(Path(base) / name)
         for cand in candidates:
             if cand.is_file():
                 return str(cand)
-        # Installed packages, via `jaipl install`.
+        # Installed packages, via `zing install`.
         from . import pkg
 
         entry = pkg.package_path(name)
@@ -1018,7 +1018,7 @@ class Interpreter:
         )
 
     def _load_module(self, path: str, line: int):
-        """Parse and run a .jai module once, caching the result."""
+        """Parse and run a .zig module once, caching the result."""
         cache = getattr(self, "_modules", None)
         if cache is None:
             cache = {}
@@ -1483,9 +1483,9 @@ def run_source(
     max_steps: int = 0,
     source_dir=None,
 ) -> Interpreter:
-    """Parse and run jaipl source. Convenience for tests and the CLI.
+    """Parse and run zing source. Convenience for tests and the CLI.
 
-    source_dir tells the interpreter where `import` should look for .jai
+    source_dir tells the interpreter where `import` should look for .zig
     files; the CLI sets it to the folder holding the script.
     """
     from .parser import parse
