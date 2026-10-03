@@ -351,6 +351,23 @@ def config_path():
     return home() / "config.json"
 
 
+def registry_settings(overrides: dict | None = None) -> dict:
+    """Merge saved configuration with command-line overrides.
+
+    An override always wins, so a script can publish to a different registry
+    without editing the config file.
+    """
+    settings = read_config()
+    settings.setdefault("registry", DEFAULT_REGISTRY)
+    settings.setdefault("token", "")
+    for key, value in (overrides or {}).items():
+        if value in (None, ""):
+            continue
+        if key in ("registry", "token"):
+            settings[key] = value
+    return settings
+
+
 def read_config() -> dict:
     path = config_path()
     if not path.is_file():
@@ -375,12 +392,26 @@ def registry_url() -> str:
     return str(read_config().get("registry") or DEFAULT_REGISTRY).rstrip("/")
 
 
-def _request(path: str, payload: dict | None = None, timeout: float = 20.0):
+def _resolve(registry: str = None, token: str = None) -> tuple[str, str]:
+    """Work out which registry and token to use for one request.
+
+    Command-line values win over the config file, so a script can talk to a
+    throwaway registry without disturbing the saved settings.
+    """
+    settings = registry_settings(
+        {"registry": registry, "token": token} if (registry or token) else None)
+    base = settings["registry"].rstrip("/")
+    return base, settings["token"]
+
+
+def _request(path: str, payload: dict | None = None, timeout: float = 20.0,
+             registry: str = None, token: str = None):
     """Talk to the registry. Raises PackageError with a readable message."""
     import urllib.error
     import urllib.request
 
-    url = registry_url() + path
+    base_url, saved_token = _resolve(registry, token)
+    url = base_url + path
     data = None
     headers = {"Accept": "application/json", "User-Agent": "jaipl-pkg"}
     if payload is not None:
@@ -388,9 +419,8 @@ def _request(path: str, payload: dict | None = None, timeout: float = 20.0):
 
         data = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
-        token = read_config().get("token")
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+        if saved_token:
+            headers["Authorization"] = f"Bearer {saved_token}"
     req = urllib.request.Request(url, data=data, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -418,12 +448,14 @@ def _request(path: str, payload: dict | None = None, timeout: float = 20.0):
         raise PackageError(f"the registry sent something that is not JSON") from None
 
 
-def _request_bytes(path: str, timeout: float = 60.0) -> bytes:
+def _request_bytes(path: str, timeout: float = 60.0,
+                   registry: str = None, token: str = None) -> bytes:
     """Fetch a non-JSON response, such as a package archive."""
     import urllib.error
     import urllib.request
 
-    url = registry_url() + path
+    base_url, _ = _resolve(registry, token)
+    url = base_url + path
     req = urllib.request.Request(
         url, headers={"User-Agent": "jaipl-pkg", "Accept": "application/zip"}
     )
@@ -440,8 +472,10 @@ def _request_bytes(path: str, timeout: float = 60.0) -> bytes:
         raise PackageError(f"the registry at {url} timed out") from None
 
 
-def remote_search(term: str = "") -> list[dict]:
-    packages = _request("/api/packages").get("packages", [])
+def remote_search(term: str = "", registry: str = None,
+                   token: str = None) -> list[dict]:
+    packages = _request("/api/packages", registry=registry,
+                       token=token).get("packages", [])
     needle = term.lower()
     found = []
     for meta in packages:
@@ -454,7 +488,8 @@ def remote_search(term: str = "") -> list[dict]:
     return found
 
 
-def install_from_registry(name: str, *, upgrade: bool = False):
+def install_from_registry(name: str, *, upgrade: bool = False,
+                        registry: str = None, token: str = None):
     """Download a package from the configured registry and install it."""
     import hashlib
     import io
@@ -468,9 +503,10 @@ def install_from_registry(name: str, *, upgrade: bool = False):
             f"Use `install {name} --upgrade` to update it."
         )
 
-    info = _request(f"/api/packages/{name}")
+    info = _request(f"/api/packages/{name}", registry=registry, token=token)
     version = str(info.get("version", "0"))
-    blob = _request_bytes(f"/api/packages/{name}/download")
+    blob = _request_bytes(f"/api/packages/{name}/download",
+                           registry=registry, token=token)
 
     expected = info.get("sha256")
     if expected:
@@ -500,6 +536,9 @@ def install_from_registry(name: str, *, upgrade: bool = False):
 
     manifest = read_manifest(dest)
     manifest["version"] = version
+    # Keep the archive hash so the install can be re-verified later without
+    # trusting the registry again, and so the lockfile can pin it.
+    manifest["sha256"] = expected or hashlib.sha256(blob).hexdigest()
     (dest / MANIFEST).write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
@@ -507,7 +546,7 @@ def install_from_registry(name: str, *, upgrade: bool = False):
     return name, "upgraded" if upgrade else "installed"
 
 
-def publish(folder: Path):
+def publish(folder: Path, registry: str = None, token: str = None):
     """Upload a package folder to the configured registry."""
     import base64
     import sys as _sys
@@ -523,7 +562,7 @@ def publish(folder: Path):
     zip_bytes = build_zip(folder, name)
     payload = dict(manifest)
     payload["zip"] = base64.b64encode(zip_bytes).decode("ascii")
-    record = _request("/api/packages", payload=payload, timeout=60.0)
+    record = _request("/api/packages", registry=registry, token=token, payload=payload, timeout=60.0)
     return name, record
 
 

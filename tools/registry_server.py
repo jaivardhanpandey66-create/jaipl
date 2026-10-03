@@ -112,7 +112,15 @@ def build_zip(source: Path, name: str) -> bytes:
                     continue
                 if path.suffix in (".pyc",) or "__pycache__" in path.parts:
                     continue
-                zf.write(path, arcname=str(Path(name) / path.relative_to(source)))
+                arcname = str(Path(name) / path.relative_to(source))
+                # A fixed timestamp and fixed permissions keep the bytes
+                # identical for identical input. Otherwise republishing the
+                # same code yields a new sha256 and invalidates every
+                # lockfile that pinned the old one.
+                info = zipfile.ZipInfo(arcname, date_time=(1980, 1, 1, 0, 0, 0))
+                info.external_attr = 0o644 << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                zf.writestr(info, path.read_bytes())
         return tmp.read_bytes()
     finally:
         tmp.unlink(missing_ok=True)

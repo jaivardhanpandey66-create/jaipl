@@ -107,16 +107,19 @@ print(mathx.mean([1, 2, 3]))</code>
 
       <div class="card">
         <h3>Windows</h3>
-        <p>Run it with Python 3.11 or newer, the same way as everywhere else.
-        There is no bundled installer to download yet.</p>
+        <p>Paste one line into PowerShell. It downloads the runtime and the
+        language, then puts <code>jaipl</code> on your PATH. No administrator
+        rights, nothing installed system-wide.</p>
         <div class="cmdrow">
-          <code class="cmd">python -m arcide.jaipl.cli run program.jai</code>
+          <code class="cmd" id="win-cmd">iwr https://raw.githubusercontent.com/jaivardhanpandey66-create/jaipl/main/install.ps1 -useb | iex</code>
           <button class="copy" data-target="win-cmd">Copy</button>
         </div>
-        <p class="fine" id="win-cmd">A single-file executable is produced by
-        <code>packaging/windows/build-installer.sh</code> on a machine with
-        Inno Setup. Until one is published here, use the command above.</p>
-      </div>
+        <p class="fine">From a checkout, run
+        <code>powershell -ExecutionPolicy Bypass -File .\install.ps1</code>.
+        Already have Python 3.11? It is used instead of downloading another
+        copy. A single-file installer is produced by
+        <code>packaging/windows/build-installer.sh</code> on Windows with
+        Inno Setup.</p>
 
       <div class="card">
         <h3>Any editor</h3>

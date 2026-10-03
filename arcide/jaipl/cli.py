@@ -227,7 +227,8 @@ USAGE = f"""{_C['bold']}jaipl {_C['off']} -- a small language for building thing
 
 
 
-def install_one(pkg, target: str, *, upgrade: bool = False):
+def install_one(pkg, target: str, *, upgrade: bool = False,
+                 registry: str = None, token: str = None):
     """Try a local folder or the registry folder first, then the network.
 
     "Already installed" is a final answer, not a reason to go online, so it
@@ -242,7 +243,8 @@ def install_one(pkg, target: str, *, upgrade: bool = False):
         if is_folder or "already installed" in str(local_error):
             raise  # a real folder, or an explicit no: do not try the network
     try:
-        return pkg.install_from_registry(target, upgrade=upgrade)
+        return pkg.install_from_registry(
+            target, registry=registry, token=token, upgrade=upgrade)
     except pkg.PackageError as remote_error:
         if "already installed" in str(remote_error):
             raise
@@ -260,12 +262,20 @@ def cmd_install(rest: list[str]) -> int:
         print(_C["red"] + "jaipl install: needs a package name or path" + _C["off"],
               file=sys.stderr)
         return 2
-    upgrade = "--upgrade" in rest or "-u" in rest
-    targets = [a for a in rest if not a.startswith("-")]
+    try:
+        options, targets = split_options(
+            rest, {"--registry", "--token", "--home", "--version"})
+    except ValueError as e:
+        print(_C["red"] + f"install: {e}" + _C["off"], file=sys.stderr)
+        return 2
+    upgrade = bool(options.get("upgrade"))
     bad = False
     for target in targets:
         try:
-            name, action = install_one(pkg, target, upgrade=upgrade)
+            name, action = install_one(
+                pkg, target, upgrade=upgrade,
+                registry=options.get("registry"),
+                token=options.get("token"))
         except pkg.PackageError as e:
             print(_C["red"] + f"install failed: {e}" + _C["off"], file=sys.stderr)
             bad = True
@@ -338,8 +348,13 @@ def cmd_list(rest: list[str]) -> int:
 def cmd_search(rest: list[str]) -> int:
     from . import pkg
 
-    term = rest[0] if rest else ""
-    if "--local" in rest:
+    try:
+        options, positionals = split_options(rest, {"--registry", "--token"})
+    except ValueError as e:
+        print(_C["red"] + f"search: {e}" + _C["off"], file=sys.stderr)
+        return 2
+    term = positionals[0] if positionals else ""
+    if options.get("local"):
         found = pkg.search(term)
         if not found:
             print(f"nothing in the local registry matches {term!r}")
@@ -347,7 +362,9 @@ def cmd_search(rest: list[str]) -> int:
             return 0
     else:
         try:
-            found = pkg.remote_search(term)
+            found = pkg.remote_search(
+                term, registry=options.get("registry"),
+                token=options.get("token"))
         except pkg.PackageError as e:
             print(_C["yellow"] + f"registry unavailable: {e}" + _C["off"],
                   file=sys.stderr)
@@ -364,12 +381,58 @@ def cmd_search(rest: list[str]) -> int:
     return 0
 
 
+_FLAGS = {"--upgrade", "-u", "--local", "--global", "--force", "-f",
+          "--no-input", "--dry-run", "--verbose", "-v"}
+
+
+def split_options(rest: list[str], valued: set[str]) -> tuple[dict, list[str]]:
+    """Split `--registry URL path` into options and positionals.
+
+    Options may appear before or after the path. A `--flag value` pair whose
+    flag is in `valued` consumes the next argument; anything else starting
+    with `--` is treated as a boolean flag. An unknown option is an error
+    rather than being silently ignored, which used to make
+    `publish --token x pkg` quietly publish with the wrong settings.
+    """
+    options: dict[str, object] = {}
+    positionals: list[str] = []
+    i = 0
+    while i < len(rest):
+        arg = rest[i]
+        if arg == "--":
+            positionals.extend(rest[i + 1:])
+            break
+        if arg.startswith("-") and arg != "-":
+            if arg in valued:
+                if i + 1 >= len(rest):
+                    raise ValueError(f"{arg} needs a value")
+                options[arg.lstrip("-")] = rest[i + 1]
+                i += 2
+                continue
+            if arg in _FLAGS:
+                options[arg.lstrip("-")] = True
+                i += 1
+                continue
+            raise ValueError(f"unknown option {arg}")
+        positionals.append(arg)
+        i += 1
+    return options, positionals
+
+
 def cmd_publish(rest: list[str]) -> int:
     from . import pkg
 
-    folder = Path(rest[0]).resolve() if rest else Path.cwd()
     try:
-        name, record = pkg.publish(folder)
+        options, positionals = split_options(
+            rest, {"--registry", "--token", "--home"})
+    except ValueError as e:
+        print(_C["red"] + f"publish: {e}" + _C["off"], file=sys.stderr)
+        return 2
+    folder = Path(positionals[0]).resolve() if positionals else Path.cwd()
+    try:
+        settings = pkg.registry_settings(options)
+        name, record = pkg.publish(folder, registry=settings["registry"],
+                                   token=settings["token"])
     except pkg.PackageError as e:
         print(_C["red"] + f"publish failed: {e}" + _C["off"], file=sys.stderr)
         return 1
