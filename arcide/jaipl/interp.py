@@ -938,9 +938,14 @@ class Interpreter:
         # A user module: import helpers  ->  helpers.jai next to the script.
         path = self._resolve_module(name, node.line)
         module = self._load_module(path, node.line)
-        for key in list(module.vars):
-            if not key.startswith("_"):
-                env.define(key, module.vars[key])
+        exports = {k: v for k, v in module.vars.items()
+                   if not k.startswith("_")}
+        # Bind the module name too, so both styles work:
+        #   import mathx  ->  mean(xs)        (names copied in)
+        #   import mathx  ->  mathx.mean(xs) (module bound as a namespace)
+        env.define(name, exports)
+        for key, value in exports.items():
+            env.define(key, value)
 
     def _resolve_module(self, name: str, line: int) -> str:
         """Find the .jai file backing a module name."""

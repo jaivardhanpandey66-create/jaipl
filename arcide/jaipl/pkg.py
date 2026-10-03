@@ -151,7 +151,9 @@ def requirement_met(text: str) -> bool:
     if manifest is None:
         return False
     have = _parse_version(manifest.get("version", "0"))
-    op, want = rule[0], rule[1:]
+    # The operator may be one character (>, <) or two (>=, <=, ==).
+    op = rule[:2] if rule[:2] in (">=", "<=", "==") else rule[:1]
+    want = rule[len(op):]
     try:
         want_v = _parse_version(want or "0")
     except ValueError:

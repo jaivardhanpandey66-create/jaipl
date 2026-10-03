@@ -228,22 +228,28 @@ USAGE = f"""{_C['bold']}jaipl {_C['off']} -- a small language for building thing
 
 
 def install_one(pkg, target: str, *, upgrade: bool = False):
-    """Try a local folder or the registry folder first, then the network."""
+    """Try a local folder or the registry folder first, then the network.
+
+    "Already installed" is a final answer, not a reason to go online, so it
+    is reported on its own rather than folded into a combined message.
+    """
+    from pathlib import Path as _P
+
+    is_folder = _P(target).expanduser().is_dir()
     try:
         return pkg.install(target, upgrade=upgrade)
     except pkg.PackageError as local_error:
-        from pathlib import Path as _P
-
-        if _P(target).expanduser().is_dir():
-            raise  # a real folder that is broken: say so, do not go online
-        try:
-            return pkg.install_from_registry(target, upgrade=upgrade)
-        except pkg.PackageError as remote_error:
-            raise pkg.PackageError(
-                f"{target!r} is not installed and not in the registry.\n"
-                f"  local: {local_error}\n"
-                f"  registry: {remote_error}"
-            ) from None
+        if is_folder or "already installed" in str(local_error):
+            raise  # a real folder, or an explicit no: do not try the network
+    try:
+        return pkg.install_from_registry(target, upgrade=upgrade)
+    except pkg.PackageError as remote_error:
+        if "already installed" in str(remote_error):
+            raise
+        raise pkg.PackageError(
+            f"could not install {target!r}.\n"
+            f"  not found locally, and the registry said: {remote_error}"
+        ) from None
 
 
 def cmd_install(rest: list[str]) -> int:
