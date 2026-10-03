@@ -279,6 +279,10 @@ def cmd_install(rest: list[str]) -> int:
             print(f"{name} is already installed")
         else:
             print(f"{action} {name}")
+        try:
+            pkg.write_lock(Path.cwd())
+        except pkg.PackageError:
+            pass
     return 1 if bad else 0
 
 
@@ -293,11 +297,17 @@ def cmd_uninstall(rest: list[str]) -> int:
     for name in rest:
         try:
             gone = pkg.uninstall(name)
+            # Otherwise `sync` would put it straight back.
+            forgotten = pkg.drop_dependency(Path.cwd(), name)
         except pkg.PackageError as e:
             print(_C["red"] + f"uninstall failed: {e}" + _C["off"], file=sys.stderr)
             bad = True
             continue
-        print(f"removed {name}" if gone else f"{name} was not installed")
+        if gone:
+            print(f"removed {name}" + (" (dropped from jaipl.json)" if forgotten
+                                      else ""))
+        else:
+            print(f"{name} was not installed")
     return 1 if bad else 0
 
 

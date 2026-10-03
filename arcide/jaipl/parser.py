@@ -156,8 +156,22 @@ class While(Node):
 
 
 @dataclass(frozen=True, slots=True)
+class Comprehension(Node):
+    """[expr for x in seq if cond] and {k: v for x in seq}."""
+    element: object = None       # what each item becomes
+    key: object = None           # set for map comprehensions
+    var: str = ""
+    var2: str = ""               # second loop variable, as in `for i, v in`
+    seq: object = None
+    conditions: tuple = ()
+    is_map: bool = False
+    nested: object = None      # an inner comprehension, for a second `for`
+
+
+@dataclass(frozen=True, slots=True)
 class For(Node):
     var: str = ""
+    var2: str = ""          # second variable in `for i, v in ...`
     start: object = None
     stop: object = None
     body: object = None
@@ -379,6 +393,33 @@ class Parser:
         return Try(line=t.line, body=body, handlers=tuple(handlers),
                    orelse=orelse, finally_=finally_)
 
+    def comprehension_tail(self, element, key=None):
+        """Parse `for x in seq [if cond]`, returning a Comprehension."""
+        self.expect_kw("for")
+        var = self.expect_ident()
+        var2 = ""
+        if self.accept_op(","):
+            var2 = str(self.expect_ident().value)
+        self.expect_kw("in")
+        seq = self.expression()
+        if self.at_kw("for"):
+            # A second clause makes the current one the inner loop.
+            return Comprehension(
+                line=element.line, element=element, key=key,
+                var=str(var.value), var2=var2, seq=seq, conditions=(),
+                is_map=key is not None,
+                nested=self.comprehension_tail(element, key),
+            )
+        conditions = []
+        while self.at_kw("if"):
+            self.advance()
+            conditions.append(self.expression())
+        return Comprehension(
+            line=element.line, element=element, key=key,
+            var=str(var.value), var2=var2, seq=seq,
+            conditions=tuple(conditions), is_map=key is not None,
+        )
+
     def statement(self):
         t = self.cur
 
@@ -559,6 +600,9 @@ class Parser:
     def for_stmt(self):
         t = self.expect_kw("for")
         var = self.expect_ident()
+        var2 = ""
+        if self.accept_op(","):
+            var2 = str(self.expect_ident().value)
         self.expect_kw("in")
         start = self.expression()
         stop = None
@@ -567,7 +611,7 @@ class Parser:
         body = self.block()
         self.end_statement()
         return For(
-            line=t.line, var=str(var.value),
+            line=t.line, var=str(var.value), var2=var2,
             start=start, stop=stop, body=body,
         )
 
@@ -750,14 +794,21 @@ class Parser:
 
         if self.at_op("["):
             self.advance()
-            items = []
-            if not self.at_op("]"):
-                while True:
-                    items.append(self.expression())
-                    if not self.accept_op(","):
-                        break
-                    if self.at_op("]"):
-                        break
+            if self.at_op("]"):
+                self.advance()
+                return ListLit(line=t.line, items=())
+            first = self.expression()
+            # [expr for x in xs] is sugar, not a list literal, and has to be
+            # spotted before the closing bracket is demanded.
+            if self.at_kw("for"):
+                comp = self.comprehension_tail(first)
+                self.expect_op("]")
+                return comp
+            items = [first]
+            while self.accept_op(","):
+                if self.at_op("]"):
+                    break
+                items.append(self.expression())
             self.expect_op("]")
             return ListLit(line=t.line, items=tuple(items))
 

@@ -28,7 +28,8 @@ from .parser import (
     Literal, Logical, MapLit, MethodCall, New, Program, Return, SelfRef,
     Unary, Var, While,
     Catch,    Throw,    Try,
-    Parser,)
+    Parser,
+    Comprehension,)
 
 
 class RuntimeError_(JaiError):
@@ -645,6 +646,47 @@ class Interpreter:
         ]:
             g.define(name, NativeFn(name, fn))
 
+    def iterables(self, value, line):
+        """What `for x in ...` accepts, as a list of items."""
+        if isinstance(value, dict):
+            return list(value.keys())
+        if isinstance(value, str):
+            return list(value)
+        if isinstance(value, list):
+            return value
+        raise RuntimeError_(
+            f"'for x in ...' needs a list, a map, a string, or a range "
+            f"like 0..10, got {self.type_name(value)}", line)
+
+    def run_comprehension(self, node, env):
+        """[expr for x in seq if cond] -- the loop, without the ceremony."""
+        outer = Env(env)
+        out = []
+        if node.nested is not None:
+            # A second `for` clause: iterate, then run the inner one per item.
+            collected = []
+            for item in self.iterables(self.eval(node.seq, outer), node.line):
+                scope = Env(outer)
+                scope.define(node.var, item)
+                collected.extend(self.eval(node.nested, scope))
+            return collected
+        items = self.iterables(self.eval(node.seq, outer), node.line)
+        for position, item in enumerate(items):
+            scope = Env(outer)
+            if node.var2:
+                scope.define(node.var, position)
+                scope.define(node.var2, item)
+            else:
+                scope.define(node.var, item)
+            keep = True
+            for cond in node.conditions:
+                if not self.truthy(self.eval(cond, scope)):
+                    keep = False
+                    break
+            if keep:
+                out.append(self.eval(node.element, scope))
+        return out
+
     def slice(self, target, start, stop, line):
         """Return xs[start:stop], tolerating negatives and overruns."""
         if isinstance(target, str):
@@ -889,9 +931,14 @@ class Interpreter:
                 stop = self.eval(node.stop, env)
                 self._check_number(start, stop, "..", node.line)
                 items = range(int(start), int(stop))
-            for item in items:
+            for position, item in enumerate(items):
                 inner = Env(env)
                 inner.define(node.var, item)
+                if node.var2:
+                    # `for i, v in ...`: i is the position, v the value.
+                    inner.define(node.var2, position)
+                    inner.define(node.var, position)
+                    inner.define(node.var2, item)
                 try:
                     self.exec_stmt(node.body, inner)
                 except BreakSignal:
@@ -1018,6 +1065,9 @@ class Interpreter:
             if not env.has("self"):
                 raise RuntimeError_("'self' used outside a method", node.line)
             return env.get("self")
+
+        if t is Comprehension:
+            return self.run_comprehension(node, env)
 
         if t is ListLit:
             return [self.eval(x, env) for x in node.items]

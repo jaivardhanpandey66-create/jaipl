@@ -486,14 +486,7 @@ def install_from_registry(name: str, *, upgrade: bool = False):
         shutil.rmtree(dest)
     try:
         with zipfile.ZipFile(io.BytesIO(blob)) as zf:
-            for member in zf.namelist():
-                # Refuse paths that would escape the install folder.
-                target = (dest / member).resolve()
-                if not str(target).startswith(str(dest.resolve())):
-                    raise PackageError(
-                        f"{name} contains a file outside its folder: {member}"
-                    )
-            zf.extractall(dest)
+            _safe_extract(zf, dest)
     except zipfile.BadZipFile:
         raise PackageError(f"{name} download is not a readable zip file") from None
 
@@ -532,3 +525,80 @@ def publish(folder: Path):
     payload["zip"] = base64.b64encode(zip_bytes).decode("ascii")
     record = _request("/api/packages", payload=payload, timeout=60.0)
     return name, record
+
+
+# ---------------------------------------------------------------- the lockfile
+
+LOCK_FILE = "jaipl.lock"
+
+
+def write_lock(folder: Path) -> Path:
+    """Record exactly what is installed, so a project can be reproduced.
+
+    A lockfile pins versions and content hashes. Without it, `sync` installs
+    whatever the registry publishes today, which can differ tomorrow.
+    """
+    entries = []
+    for name in installed_names():
+        manifest = load_installed(name) or {"name": name}
+        digest = ""
+        main = manifest.get("main") or f"{name}.jai"
+        target = installed_dir(name) / str(main)
+        if target.is_file():
+            import hashlib
+
+            digest = hashlib.sha256(target.read_bytes()).hexdigest()
+        entries.append({
+            "name": name,
+            "version": str(manifest.get("version", "0")),
+            "sha256": digest,
+        })
+    entries.sort(key=lambda e: e["name"])
+    path = folder / LOCK_FILE
+    path.write_text(
+        json.dumps({"lockfile": 1, "packages": entries}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def read_lock(folder: Path) -> list[dict]:
+    path = folder / LOCK_FILE
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise PackageError(f"{path} is not valid JSON: {e}") from None
+    packages = data.get("packages")
+    return packages if isinstance(packages, list) else []
+
+
+def _safe_extract(zf, dest: Path) -> None:
+    """Extract, refusing any member that would land outside dest.
+
+    The server's checksum only proves the archive is what was published; it
+    cannot prove the published archive is harmless, so the paths are checked
+    here as well.
+    """
+    root = dest.resolve()
+    for member in zf.namelist():
+        target = (root / member).resolve()
+        if target != root and root not in target.parents:
+            raise PackageError(
+                f"package contains a file outside its folder: {member}"
+            )
+    zf.extractall(root)
+
+
+def drop_dependency(folder: Path, name: str) -> bool:
+    """Remove a package from the project file. True if it was listed."""
+    project = read_project(folder)
+    if not project:
+        return False
+    deps = project.get("dependencies")
+    if not isinstance(deps, dict) or name not in deps:
+        return False
+    del deps[name]
+    write_project(folder, project)
+    return True
