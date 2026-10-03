@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# jaipl launcher. Finds the runtime without needing jaipl on PATH.
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+root="$(dirname "$here")"
+if [ -d "$root/arcide" ]; then
+  export PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}"
+  exec "${JAIPL_PYTHON:-python3}" -m arcide.jaipl.cli "$@"
+fi
+echo "jaipl: runtime not found next to $here" >&2
+exit 1

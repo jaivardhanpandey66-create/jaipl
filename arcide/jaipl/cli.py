@@ -270,19 +270,25 @@ def cmd_install(rest: list[str]) -> int:
             print(_C["red"] + f"install failed: {e}" + _C["off"], file=sys.stderr)
             bad = True
             continue
-        # Record it in the project file so others can reproduce the setup.
-        try:
-            pkg.add_dependency(Path.cwd(), name)
-        except pkg.PackageError:
-            pass
+        # Record it in the project file, but only when standing inside an
+        # actual project -- otherwise installing anywhere would drop a
+        # jaipl.json into that directory.
+        project = Path.cwd()
+        if (project / pkg.PROJECT_FILE).is_file():
+            try:
+                pkg.add_dependency(project, name)
+            except pkg.PackageError as e:
+                print(_C["yellow"] + f"note: {e}" + _C["off"], file=sys.stderr)
         if action == "unchanged":
             print(f"{name} is already installed")
         else:
             print(f"{action} {name}")
-        try:
-            pkg.write_lock(Path.cwd())
-        except pkg.PackageError:
-            pass
+        project = Path.cwd()
+        if (project / pkg.PROJECT_FILE).is_file():
+            try:
+                pkg.write_lock(project)
+            except pkg.PackageError:
+                pass
     return 1 if bad else 0
 
 
@@ -298,7 +304,9 @@ def cmd_uninstall(rest: list[str]) -> int:
         try:
             gone = pkg.uninstall(name)
             # Otherwise `sync` would put it straight back.
-            forgotten = pkg.drop_dependency(Path.cwd(), name)
+            project = Path.cwd()
+            forgotten = (pkg.drop_dependency(project, name)
+                         if (project / pkg.PROJECT_FILE).is_file() else False)
         except pkg.PackageError as e:
             print(_C["red"] + f"uninstall failed: {e}" + _C["off"], file=sys.stderr)
             bad = True

@@ -12,3 +12,6 @@ wip_vm/
 vscode-jaipl/node_modules/
 vscode-jaipl/out/
 *.vsix
+# written by `jai install` inside a project, and per-machine state
+jaipl.json
+jaipl.lock
