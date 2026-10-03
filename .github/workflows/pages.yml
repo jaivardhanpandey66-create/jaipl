@@ -1,10 +1,10 @@
-name: Deploy jaipl site
+name: Deploy Zing site
 
 on:
   push:
     branches: [main]
     paths:
-      - "jaipl-site/**"
+      - "zaipl-site/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-jaipl
+  group: pages-zing
   cancel-in-progress: true
 
 jobs:
@@ -28,6 +28,6 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: jaipl-site
+          path: zaipl-site
       - id: deployment
         uses: actions/deploy-pages@v4
