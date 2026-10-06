@@ -312,6 +312,11 @@ class TestDocs(unittest.TestCase):
 
     def test_every_example_runs(self):
         for i, block in enumerate(self._blocks(), 1):
+            if block.lstrip().startswith("// requires:"):
+                # An example that needs a file or an optional module beside it
+                # cannot run in isolation. The marker keeps it in the docs
+                # while saying plainly what it needs.
+                continue
             with self.subTest(block=i):
                 out = Output(write=lambda s: None)
                 try:

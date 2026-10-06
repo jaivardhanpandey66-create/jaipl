@@ -69,6 +69,7 @@ if n < 5 {
 Three forms. Ranges use `0..10`, which excludes the upper bound.
 
 ```zig
+let x = 0
 for i in 0..5 { print(i) }             // 0 1 2 3 4
 while x < 3 { print(x); x = x + 1 }    // while with a condition
 for item in [10, 20, 30] { print(item) }   // any list
@@ -273,6 +274,7 @@ let VERSION = 1
 ```
 
 ```zig
+// requires: file mathlib.zig beside this one
 // main.zig -- needs mathlib.zig beside it
 import mathlib
 print(square(7))    // 49
@@ -321,6 +323,7 @@ print(max(3, 9, 2))      // 9
 ## 16. Calling C++ (optional)
 
 ```zig
+// requires: module gpp (the optional C++ bridge)
 import gpp
 print(gpp.abs(-5))
 ```

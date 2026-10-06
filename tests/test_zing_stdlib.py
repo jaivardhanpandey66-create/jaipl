@@ -120,8 +120,8 @@ class StringBuiltins(unittest.TestCase):
     def test_search(self):
         self.assertEqual(expr('find("zing", "in")'), "1")
         self.assertEqual(expr('find("zing", "zz")'), "-1")
-        self.assertEqual(expr('starts_with("zing", "jai")'), "true")
-        self.assertEqual(expr('ends_with("zing", "pl")'), "true")
+        self.assertEqual(expr('starts_with("zing", "zin")'), "true")
+        self.assertEqual(expr('ends_with("zing", "ing")'), "true")
         self.assertEqual(expr('contains("hello", "ell")'), "true")
         self.assertEqual(expr('count("cheese", "e")'), "3")
 
