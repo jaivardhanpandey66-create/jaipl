@@ -1,13 +1,13 @@
 """Package manager for zing.
 
-A package is an ordinary folder holding .zig files plus a `zing.json`
+A package is an ordinary folder holding .zng files plus a `zing.json`
 manifest:
 
     {
       "name": "mathx",
       "version": "0.1.0",
       "description": "extra maths helpers",
-      "main": "mathx.zig",
+      "main": "mathx.zng",
       "requires": ["jsonpack >=0.1"]
     }
 
@@ -104,7 +104,7 @@ def load_installed(name: str) -> dict | None:
 def find_entry(name: str, manifest: dict) -> str:
     """The file `import <name>` should load.
 
-    The manifest's "main" wins, but a same-named .zig file is accepted too so
+    The manifest's "main" wins, but a same-named .zng file is accepted too so
     a one-file package does not need a manifest to be importable.
     """
     main = manifest.get("main")
@@ -115,12 +115,12 @@ def find_entry(name: str, manifest: dict) -> str:
                 f"package {name!r} points at a missing file: {main}"
             )
         return str(candidate)
-    default = installed_dir(name) / f"{name}.zig"
+    default = installed_dir(name) / f"{name}.zng"
     if default.is_file():
         return str(default)
     raise PackageError(
         f"package {name!r} has no {MANIFEST} \"main\" entry and no "
-        f"{name}.zig file"
+        f"{name}.zng file"
     )
 
 
@@ -587,7 +587,7 @@ def write_lock(folder: Path) -> Path:
     for name in installed_names():
         manifest = load_installed(name) or {"name": name}
         digest = ""
-        main = manifest.get("main") or f"{name}.zig"
+        main = manifest.get("main") or f"{name}.zng"
         target = installed_dir(name) / str(main)
         if target.is_file():
             import hashlib

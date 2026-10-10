@@ -10,7 +10,7 @@
 #
 # Options:
 #   --prefix DIR      install somewhere else (default: ~/.local)
-#   --with-associate  also register .zig files and a desktop entry
+#   --with-associate  also register .zng files and a desktop entry
 #   --uninstall       remove an existing install
 #   --version         print what would be installed and stop
 #   --local PATH      install from a checkout on this machine, no download
@@ -176,7 +176,7 @@ esac
 # --- desktop integration ----------------------------------------------
 if [ "$ASSOCIATE" = 1 ]; then
   if [ "$(uname -s)" = "Linux" ]; then
-    say "registering the .zig file type"
+    say "registering the .zng file type"
     mkdir -p "$HOME/.local/share/mime/packages" "$HOME/.local/share/applications"
     mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps"
     for size in 16 32 48 64 128 256; do
@@ -193,7 +193,7 @@ if [ "$ASSOCIATE" = 1 ]; then
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
   <mime-type type="text/x-zing">
     <comment>zing source file</comment>
-    <glob pattern="*.zig"/>
+    <glob pattern="*.zng"/>
     <sub-class-of type="text/plain"/>
   </mime-type>
 </mime-info>
@@ -220,10 +220,10 @@ DESKTOP
     if command -v gtk-update-icon-cache >/dev/null 2>&1; then
       gtk-update-icon-cache -f "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
     fi
-    say "double-clicking a .zig file will now run it, with the zing icon"
+    say "double-clicking a .zng file will now run it, with the zing icon"
   else
     warn "macOS file association is handled by the .app bundle, not this script"
-    warn "use: open -a zing file.zig   (after installing the app)"
+    warn "use: open -a zing file.zng   (after installing the app)"
   fi
 fi
 
@@ -234,11 +234,11 @@ fi
 say "checking the install"
 ( cd / && "$TARGET" version >/dev/null 2>&1 ) \
   || die "the installed command did not run"
-printf 'print("zing works")\n' > "$WORK/t.zig"
-OUT="$( cd / && "$TARGET" run "$WORK/t.zig" )" \
+printf 'print("zing works")\n' > "$WORK/t.zng"
+OUT="$( cd / && "$TARGET" run "$WORK/t.zng" )" \
   || die "a test program did not run"
 [ "$OUT" = "zing works" ] || die "unexpected test output: $OUT"
 
 say "installed zing $VERSION"
 [ "$OUT" = "zing works" ] && printf '   try:  zing repl\n          zing run %s\n' \
-  "$SHARE_DIR/examples/shapes.zig" 2>/dev/null || true
+  "$SHARE_DIR/examples/shapes.zng" 2>/dev/null || true

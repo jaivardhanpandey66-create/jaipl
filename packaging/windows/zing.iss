@@ -5,7 +5,7 @@
 ; which produces zing-setup-<version>.exe -- the file the website links to.
 ;
 ; It bundles the Python runtime so the install needs nothing preinstalled,
-; registers the .zig file type so double-clicking runs the file, and adds a
+; registers the .zng file type so double-clicking runs the file, and adds a
 ; "Run with zing" entry to the right-click menu.
 
 #define AppName "zing"
@@ -41,13 +41,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "addtopath"; Description: "Add zing to PATH so you can type 'zing' anywhere"; GroupDescription: "Command line:"
-Name: "assoc"; Description: "Open .zig files by double-clicking them"; GroupDescription: "File types:"; Flags: checkedonce
+Name: "assoc"; Description: "Open .zng files by double-clicking them"; GroupDescription: "File types:"; Flags: checkedonce
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 
 [Files]
 ; The launcher.
 Source: "zing.cmd"; DestDir: "{app}"; Flags: ignoreversion
-; The classic zing icon, shown in Explorer for .zig files.
+; The classic zing icon, shown in Explorer for .zng files.
 Source: "..\..\packaging\icons\zing.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; The interpreter runtime.
 Source: "..\arcide\*"; DestDir: "{app}\{#RuntimeDir}\arcide"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -69,10 +69,10 @@ Name: "{autodesktop}\zing"; Filename: "{app}\zing.cmd"; Parameters: "repl"; Work
 ; Make 'zing' runnable from any command prompt.
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \
   ValueData: "{olddata};{app}"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{app}'))
-; Register the .zig extension.
-Root: HKCU; Subkey: "Software\Classes\.zig"; ValueType: string; ValueName: ""; \
+; Register the .zng extension.
+Root: HKCU; Subkey: "Software\Classes\.zng"; ValueType: string; ValueName: ""; \
   ValueData: "zing.source"; Flags: uninsdeletekey; Tasks: assoc
-Root: HKCU; Subkey: "Software\Classes\.zig\OpenWithProgids"; \
+Root: HKCU; Subkey: "Software\Classes\.zng\OpenWithProgids"; \
   ValueType: string; ValueName: "zing.source"; ValueData: ""; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\zing.source"; ValueType: string; ValueName: ""; \
   ValueData: "zing source file"; Flags: uninsdeletekey; Tasks: assoc

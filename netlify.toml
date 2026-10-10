@@ -8,9 +8,9 @@
 [build.environment]
   PYTHON_VERSION = "3.11"
 
-# Netlify serves .zig files as plain text rather than downloading them.
+# Netlify serves .zng files as plain text rather than downloading them.
 [[headers]]
-  for = "/*.zig"
+  for = "/*.zng"
   [headers.values]
     Content-Type = "text/plain; charset=utf-8"
 

@@ -1,6 +1,6 @@
 """zing lexer.
 
-Pure Python, no dependencies. ``.zig`` files.
+Pure Python, no dependencies. ``.zng`` files.
 
 Design goal for the whole language is "easy as fuck", so the token set is
 small and the keywords are the obvious words. Nothing here is clever; the

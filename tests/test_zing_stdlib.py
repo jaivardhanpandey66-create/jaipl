@@ -418,47 +418,47 @@ class Modules(unittest.TestCase):
         return str(path)
 
     def test_functions_cross_files(self):
-        self.write("mathlib.zig", "func square(n) { return n * n }")
-        main = self.write("main.zig", "import mathlib\nprint(square(7))")
+        self.write("mathlib.zng", "func square(n) { return n * n }")
+        main = self.write("main.zng", "import mathlib\nprint(square(7))")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["49"])
 
     def test_module_scope_is_isolated_but_sees_builtins(self):
-        self.write("lib.zig", "func helper() { return PI }")
-        main = self.write("main.zig", "import lib\nprint(round(helper(), 4))")
+        self.write("lib.zng", "func helper() { return PI }")
+        main = self.write("main.zng", "import lib\nprint(round(helper(), 4))")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["3.1416"])
 
     def test_module_toplevel_values_are_shared(self):
-        self.write("consts.zig", "let LIMIT = 3 * 7")
-        main = self.write("main.zig", "import consts\nprint(LIMIT)")
+        self.write("consts.zng", "let LIMIT = 3 * 7")
+        main = self.write("main.zng", "import consts\nprint(LIMIT)")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["21"])
 
     def test_underscore_names_stay_private(self):
-        self.write("lib.zig", "let _secret = 1\nfunc open_one() { return 2 }")
-        main = self.write("main.zig", "import lib\nprint(open_one())")
+        self.write("lib.zng", "let _secret = 1\nfunc open_one() { return 2 }")
+        main = self.write("main.zng", "import lib\nprint(open_one())")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["2"])
 
     def test_a_module_is_loaded_once(self):
         # Importing twice must not run the module body again.
-        self.write("once.zig", 'print("module loaded")\nfunc helper() { return 1 }')
-        main = self.write("main.zig", "import once\nimport once\nhelper()")
+        self.write("once.zng", 'print("module loaded")\nfunc helper() { return 1 }')
+        main = self.write("main.zng", "import once\nimport once\nhelper()")
         out = printed(open(main).read(), source_dir=self.root)
         self.assertEqual(out, ["module loaded"])
 
     def test_missing_module_lists_what_was_tried(self):
-        main = self.write("main.zig", "import nosuchmodule")
+        main = self.write("main.zng", "import nosuchmodule")
         err = fails(open(main).read(), source_dir=self.root)
         self.assertIn("cannot find module", str(err))
-        self.assertIn("nosuchmodule.zig", str(err))
+        self.assertIn("nosuchmodule.zng", str(err))
 
     def test_broken_module_reports_the_file(self):
-        self.write("bad.zig", "func oops( { }")
-        main = self.write("main.zig", "import bad")
+        self.write("bad.zng", "func oops( { }")
+        main = self.write("main.zng", "import bad")
         err = fails(open(main).read(), source_dir=self.root)
-        self.assertIn("bad.zig", str(err))
+        self.assertIn("bad.zng", str(err))
 
 
 if __name__ == "__main__":

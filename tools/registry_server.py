@@ -29,7 +29,7 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-MAX_UPLOAD = 10 * 1024 * 1024  # 10 MiB is plenty for a folder of .zig files
+MAX_UPLOAD = 10 * 1024 * 1024  # 10 MiB is plenty for a folder of .zng files
 NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 

@@ -982,7 +982,7 @@ class Interpreter:
             env.define("gpp", bridge.make_module())
             return
 
-        # A user module: import helpers  ->  helpers.zig next to the script.
+        # A user module: import helpers  ->  helpers.zng next to the script.
         path = self._resolve_module(name, node.line)
         module = self._load_module(path, node.line)
         exports = {k: v for k, v in module.vars.items()
@@ -995,11 +995,11 @@ class Interpreter:
             env.define(key, value)
 
     def _resolve_module(self, name: str, line: int) -> str:
-        """Find the .zig file backing a module name."""
+        """Find the .zng file backing a module name."""
         base = str(self.source_dir) if self.source_dir else "."
-        candidates = [Path(base) / f"{name}.zig"]
+        candidates = [Path(base) / f"{name}.zng"]
         raw = Path(name)
-        if raw.suffix == ".zig":
+        if raw.suffix == ".zng":
             candidates.append(raw)
         else:
             candidates.append(Path(base) / name)
@@ -1018,7 +1018,7 @@ class Interpreter:
         )
 
     def _load_module(self, path: str, line: int):
-        """Parse and run a .zig module once, caching the result."""
+        """Parse and run a .zng module once, caching the result."""
         cache = getattr(self, "_modules", None)
         if cache is None:
             cache = {}
@@ -1504,7 +1504,7 @@ def run_source(
 ) -> Interpreter:
     """Parse and run zing source. Convenience for tests and the CLI.
 
-    source_dir tells the interpreter where `import` should look for .zig
+    source_dir tells the interpreter where `import` should look for .zng
     files; the CLI sets it to the folder holding the script.
     """
     from .parser import parse

@@ -41,7 +41,7 @@ def _run(file: str) -> str:
 LANGUAGES: tuple = (
     Language(
         name="zing",
-        extensions=(".zig",),
+        extensions=(".zng",),
         run="zing run {file}",
         keywords=(
             "let", "var", "func", "class", "extends", "new", "self", "if",

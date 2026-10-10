@@ -204,10 +204,10 @@ if ($parts -notcontains $Bin) {
 
 # ------------------------------------------------ file icon + association
 
-# .zig is the file type used by two languages, so we only register when the
+# .zng is the file type used by two languages, so we only register when the
 # type is not claimed already. HKCU means no administrator rights.
 $classesRoot = Join-Path $env:LOCALAPPDATA 'jaipl\Software\Classes'
-$dot = 'HKCU:\Software\Classes\.zig'
+$dot = 'HKCU:\Software\Classes\.zng'
 $prog = 'HKCU:\Software\Classes\Zing.Program'
 $icoSource = Join-Path $Root 'packaging\icons\zing.ico'
 $icoPath = Join-Path (Join-Path $Root 'resources') 'zing.ico'
@@ -229,7 +229,7 @@ if (-not (Test-Path $dot)) {
         }
         Set-ItemProperty (Join-Path $prog 'shell\open\command') -Name '(default)' -Value "`"$cmdPath`" `"%1`""
         Set-ItemProperty $dot -Name '(default)' -Value 'Zing.Program'
-        Write-Step '.zig files now open with zing and carry the zing icon'
+        Write-Step '.zng files now open with zing and carry the zing icon'
         # Ask the shell to re-read its icon and association tables.
         Add-Type -TypeDefinition @'
 using System;
@@ -244,7 +244,7 @@ public static class Sh {
         Write-Host "  note: could not register the file icon: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 } else {
-    Write-Step '.zig was already associated with something else; left it alone'
+    Write-Step '.zng was already associated with something else; left it alone'
     Write-Host '  (you can run the zing icon install manually later if you want)' -ForegroundColor Gray
 }
 
@@ -260,7 +260,7 @@ Write-Host "  $version" -ForegroundColor Green
 Write-Host ""
 Write-Host 'Try this:' -ForegroundColor Gray
 Write-Host '  zing repl'
-Write-Host '  zing run hello.zig'
+Write-Host '  zing run hello.zng'
 Write-Host ''
 Write-Host "Files are in $Root" -ForegroundColor Gray
 Write-Host 'To uninstall, delete that folder and remove it from your PATH.' -ForegroundColor Gray

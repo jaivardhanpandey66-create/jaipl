@@ -277,16 +277,16 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(cli.main(["version"]), 0)
 
     def test_run_and_exit_code(self):
-        self.assertEqual(cli.main(["run", str(EXAMPLES / "shapes.zig")]), 0)
+        self.assertEqual(cli.main(["run", str(EXAMPLES / "shapes.zng")]), 0)
 
     def test_check_reports_ok(self):
-        self.assertEqual(cli.main(["check", str(EXAMPLES / "shapes.zig")]), 0)
+        self.assertEqual(cli.main(["check", str(EXAMPLES / "shapes.zng")]), 0)
 
     def test_unknown_command_is_an_error(self):
         self.assertEqual(cli.main(["nonsense"]), 2)
 
     def test_missing_file(self):
-        self.assertEqual(cli.main(["run", "/nope/missing.zig"]), 2)
+        self.assertEqual(cli.main(["run", "/nope/missing.zng"]), 2)
 
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
@@ -305,7 +305,7 @@ class TestDocs(unittest.TestCase):
         md = Path(__file__).resolve().parent.parent / "ZING.md"
         if not md.exists():
             self.skipTest("ZING.md is not present")
-        return re.findall(r"```zig\n(.*?)```", md.read_text(), re.S)
+        return re.findall(r"```zng\n(.*?)```", md.read_text(), re.S)
 
     def test_reference_exists(self):
         self.assertTrue(self._blocks(), "no zing examples found in ZING.md")

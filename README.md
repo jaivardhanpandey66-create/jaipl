@@ -2,7 +2,7 @@
 
 A small language that runs anywhere.
 
-```zig
+```zng
 class Dog {
     let name
     func new(name) { self.name = name }
@@ -48,15 +48,15 @@ To uninstall, delete the folder it created and remove it from your PATH.
 
 | Command | What it does |
 | --- | --- |
-| `zing run FILE.zig` | run a program |
-| `zing check FILE.zig` | syntax check, with line and column |
-| `zing fmt FILE.zig` | format in place, refusing unsafe rewrites |
+| `zing run FILE.zng` | run a program |
+| `zing check FILE.zng` | syntax check, with line and column |
+| `zing fmt FILE.zng` | format in place, refusing unsafe rewrites |
 | `zing repl` | interactive prompt |
 | `zing version` | print the version |
 
 ## Packages
 
-Packages are folders with a `zing.json` manifest and one or more `.zig`
+Packages are folders with a `zing.json` manifest and one or more `.zng`
 files. Install from a folder, from the local registry, or from a server.
 
 ```sh
@@ -90,7 +90,7 @@ its archive, so the same code always arrives.
 
 ### Using a package
 
-```zig
+```zng
 import stats
 
 print(stats.mean([2, 4, 6]))   # 4.0
@@ -118,7 +118,7 @@ Classes with inheritance, `try`/`catch`/`finally`, `for` over ranges, lists,
 maps and strings, list comprehensions, slicing including negative bounds,
 string and math builtins, file I/O, and multi-file imports.
 
-```zig
+```zng
 let squares = [n * n for n in range(10) if n % 2 == 0]
 
 for i, value in ["a", "b"] {

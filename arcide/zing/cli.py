@@ -1,7 +1,7 @@
 """zing command line.
 
 This is the entry point that makes the language usable from any editor:
-every editor can run 'zing run game.zig', and the IDE just calls the same
+every editor can run 'zing run game.zng', and the IDE just calls the same
 thing. Nothing here imports GTK or anything outside the standard library,
 so the CLI runs on any machine with Python 3.11+.
 

@@ -395,7 +395,7 @@ class ArcIDEWindow(Gtk.ApplicationWindow):
         threading.Thread(target=worker, daemon=True).start()
 
     def _run_zing(self, editor) -> None:
-        """Run a .zig file inside this process, so no zing on PATH needed."""
+        """Run a .zng file inside this process, so no zing on PATH needed."""
         self.problems_store.clear()
         self._update_problem_count()
         self._show_panel("Output")

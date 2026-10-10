@@ -53,7 +53,7 @@ def make_package(folder: Path, name: str, version: str = "1.0.0",
     if requires:
         manifest["requires"] = requires
     (folder / pkg.MANIFEST).write_text(json.dumps(manifest, indent=2))
-    (folder / f"{name}.zig").write_text(
+    (folder / f"{name}.zng").write_text(
         body if body is not None
         else f"func {name}_value() {{ return 42 }}\n")
     return folder
@@ -145,7 +145,7 @@ class InstallFromFolder(PkgTestCase):
         make_package(self.work / "mathx", "mathx")
         name, action = pkg.install(str(self.work / "mathx"))
         self.assertEqual((name, action), ("mathx", "installed"))
-        self.assertTrue((pkg.installed_dir("mathx") / "mathx.zig").is_file())
+        self.assertTrue((pkg.installed_dir("mathx") / "mathx.zng").is_file())
 
     def test_import_works_both_qualified_and_bare(self):
         make_package(self.work / "mathx", "mathx")
@@ -191,7 +191,7 @@ class InstallFromFolder(PkgTestCase):
         self.assertEqual(pkg.install(str(self.work / "m"))[1], "installed")
 
     def test_manifest_pointing_at_missing_file_is_caught_at_install(self):
-        folder = make_package(self.work / "m", "m", main="nope.zig")
+        folder = make_package(self.work / "m", "m", main="nope.zng")
         with self.assertRaises(pkg.PackageError) as ctx:
             pkg.install(str(folder))
         self.assertIn("missing file", str(ctx.exception))
@@ -392,11 +392,11 @@ class RegistryServer(PkgTestCase):
 
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("evil/../../escaped.zig", "func x() { return 1 }")
+            zf.writestr("evil/../../escaped.zng", "func x() { return 1 }")
         blob = buf.getvalue()
         registry = self.registry
         meta = {"name": "evil", "version": "1.0.0",
-                "main": "evil.zig"}
+                "main": "evil.zng"}
         import hashlib
 
         record = registry.publish(meta, blob)
