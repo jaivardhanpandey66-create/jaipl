@@ -12,7 +12,11 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$here/zing.app/Contents/MacOS/zing" "$app/Contents/MacOS/zing"
 chmod +x "$app/Contents/MacOS/zing"
 cp "$here/zing.app/Contents/Info.plist" "$app/Contents/Info.plist"
-cp "$here/zing.app/Contents/Resources/AppIcon.png" "$app/Contents/Resources/AppIcon.png"
+if [ -f "$here/zing.app/Contents/Resources/zing.icns" ]; then
+  cp "$here/zing.app/Contents/Resources/zing.icns" "$app/Contents/Resources/zing.icns"
+elif [ -f "$root/packaging/icons/zing.icns" ]; then
+  cp "$root/packaging/icons/zing.icns" "$app/Contents/Resources/zing.icns"
+fi
 
 mkdir -p "$app/Contents/Resources/runtime"
 cp -R "$root/arcide" "$app/Contents/Resources/runtime/arcide"

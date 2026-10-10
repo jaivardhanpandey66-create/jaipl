@@ -1,5 +1,5 @@
 #!/bin/sh
-# jaipl launcher for macOS. Double-clicking a .jai file runs it here.
+# zing launcher for macOS. Double-clicking a .zig file runs it here.
 RES="$(dirname "$(dirname "$0")")/Resources"
 if [ -x "$RES/python/bin/python3" ]; then
   PY="$RES/python/bin/python3"
@@ -11,9 +11,9 @@ if [ $# -eq 0 ]; then
   exit 0
 fi
 case "$1" in
-  repl) exec "$PY" -c "import sys; sys.path.insert(0,'$RES/runtime'); from arcide.jaipl.cli import main; sys.exit(main(['repl']))" ;;
+  repl) exec "$PY" -c "import sys; sys.path.insert(0,'$RES/runtime'); from arcide.zing.cli import main; sys.exit(main(['repl']))" ;;
   *)    for f in "$@"; do
           echo "--- $f"
-          "$PY" -c "import sys; sys.path.insert(0,'$RES/runtime'); from arcide.jaipl.cli import main; sys.exit(main(['run','$f']))"
+          "$PY" -c "import sys; sys.path.insert(0,'$RES/runtime'); from arcide.zing.cli import main; sys.exit(main(['run','$f']))"
         done ;;
 esac

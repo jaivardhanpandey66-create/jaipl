@@ -202,8 +202,53 @@ if ($parts -notcontains $Bin) {
     Write-Step 'zing is already on your PATH'
 }
 
-# ----------------------------------------------------------------- verify
+# ------------------------------------------------ file icon + association
 
+# .zig is the file type used by two languages, so we only register when the
+# type is not claimed already. HKCU means no administrator rights.
+$classesRoot = Join-Path $env:LOCALAPPDATA 'jaipl\Software\Classes'
+$dot = 'HKCU:\Software\Classes\.zig'
+$prog = 'HKCU:\Software\Classes\Zing.Program'
+$icoSource = Join-Path $Root 'packaging\icons\zing.ico'
+$icoPath = Join-Path (Join-Path $Root 'resources') 'zing.ico'
+
+if (Test-Path $icoSource) {
+    New-Item -ItemType Directory -Path (Split-Path $icoPath) -Force | Out-Null
+    Copy-Item $icoSource $icoPath -Force
+    Write-Step 'installed the zing icon'
+}
+
+if (-not (Test-Path $dot)) {
+    try {
+        New-Item $dot -Force | Out-Null
+        New-Item $prog -Force | Out-Null
+        New-Item (Join-Path $prog 'DefaultIcon') -Force | Out-Null
+        New-Item (Join-Path $prog 'shell\open\command') -Force | Out-Null
+        if (Test-Path $icoPath) {
+            Set-ItemProperty (Join-Path $prog 'DefaultIcon') -Name '(default)' -Value "`"$icoPath`",0"
+        }
+        Set-ItemProperty (Join-Path $prog 'shell\open\command') -Name '(default)' -Value "`"$cmdPath`" `"%1`""
+        Set-ItemProperty $dot -Name '(default)' -Value 'Zing.Program'
+        Write-Step '.zig files now open with zing and carry the zing icon'
+        # Ask the shell to re-read its icon and association tables.
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class Sh {
+    [DllImport("shell32.dll")]
+    public static extern void SHChangeNotify(int w, uint f, IntPtr a, IntPtr b);
+}
+'@
+        [Sh]::SHChangeNotify(0x8000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
+    } catch {
+        Write-Host "  note: could not register the file icon: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+} else {
+    Write-Step '.zig was already associated with something else; left it alone'
+    Write-Host '  (you can run the zing icon install manually later if you want)' -ForegroundColor Gray
+}
+
+# ----------------------------------------------------------------- verify
 Write-Step 'checking it works'
 try {
     $version = & $cmdPath version 2>&1

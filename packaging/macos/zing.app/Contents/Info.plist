@@ -3,24 +3,24 @@
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key>                  <string>jaipl</string>
-  <key>CFBundleDisplayName</key>           <string>jaipl</string>
-  <key>CFBundleIdentifier</key>            <string>dev.jaipl.app</string>
+  <key>CFBundleName</key>                  <string>zing</string>
+  <key>CFBundleDisplayName</key>           <string>zing</string>
+  <key>CFBundleIdentifier</key>            <string>dev.zing.app</string>
   <key>CFBundleVersion</key>               <string>0.1.0</string>
   <key>CFBundleShortVersionString</key>    <string>0.1.0</string>
   <key>CFBundlePackageType</key>           <string>APPL</string>
-  <key>CFBundleSignature</key>             <string>jaip</string>
-  <key>CFBundleExecutable</key>            <string>jaipl</string>
-  <key>CFBundleIconFile</key>              <string>AppIcon</string>
-  <!-- Double-clicking a .jai file runs it in Terminal. -->
+  <key>CFBundleSignature</key>             <string>zng</string>
+  <key>CFBundleExecutable</key>            <string>zing</string>
+  <key>CFBundleIconFile</key>              <string>zing</string>
+  <!-- Double-clicking a .zig file runs it in Terminal. -->
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
-      <key>CFBundleTypeName</key>      <string>jaipl source file</string>
+      <key>CFBundleTypeName</key>      <string>zing source file</string>
       <key>CFBundleTypeRole</key>      <string>Editor</string>
       <key>LSHandlerRank</key>         <string>Owner</string>
       <key>CFBundleTypeExtensions</key>
-      <array><string>jai</string></array>
+      <array><string>zig</string></array>
     </dict>
   </array>
   <key>NSHighResolutionCapable</key>      <true/>

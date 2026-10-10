@@ -102,6 +102,7 @@ if [ -n "$LOCAL_PATH" ]; then
   cp -R "$LOCAL_PATH/arcide" "$SHARE_DIR/"
   cp -R "$LOCAL_PATH/examples" "$SHARE_DIR/" 2>/dev/null || true
   cp "$LOCAL_PATH/ZING.md" "$SHARE_DIR/" 2>/dev/null || true
+  ICON_SRC="$LOCAL_PATH/packaging/icons"
   RUNTIME="$SHARE_DIR"
 else
   # Release tarball first; fall back to the source archive so a missing or
@@ -149,6 +150,7 @@ else
   cp -R "$ROOT/arcide" "$SHARE_DIR/"
   cp -R "$ROOT/examples" "$SHARE_DIR/" 2>/dev/null || true
   cp "$ROOT/ZING.md" "$SHARE_DIR/" 2>/dev/null || true
+  ICON_SRC="$ROOT/packaging/icons"
   RUNTIME="$SHARE_DIR"
 fi
 
@@ -176,6 +178,16 @@ if [ "$ASSOCIATE" = 1 ]; then
   if [ "$(uname -s)" = "Linux" ]; then
     say "registering the .zig file type"
     mkdir -p "$HOME/.local/share/mime/packages" "$HOME/.local/share/applications"
+    mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps"
+    for size in 16 32 48 64 128 256; do
+      mkdir -p "$HOME/.local/share/icons/hicolor/${size}x${size}/apps"
+      if [ -f "$ICON_SRC/zing-$size.png" ]; then
+        cp "$ICON_SRC/zing-$size.png" "$HOME/.local/share/icons/hicolor/${size}x${size}/apps/zing.png"
+      fi
+    done
+    if [ -f "$ICON_SRC/zing.svg" ]; then
+      cp "$ICON_SRC/zing.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/zing.svg"
+    fi
     cat > "$HOME/.local/share/mime/packages/zing.xml" <<'MIME'
 <?xml version="1.0" encoding="UTF-8"?>
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
@@ -197,6 +209,7 @@ MIME
 Type=Application
 Name=zing Program
 Comment=Run a zing program
+Icon=zing
 Exec=$TARGET %f
 Terminal=true
 MimeType=text/x-zing;
@@ -204,7 +217,10 @@ NoDisplay=false
 Categories=Development;IDE;
 DESKTOP
     chmod +x "$HOME/.local/share/applications/zing.desktop"
-    say "double-clicking a .zig file will now run it"
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+      gtk-update-icon-cache -f "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+    fi
+    say "double-clicking a .zig file will now run it, with the zing icon"
   else
     warn "macOS file association is handled by the .app bundle, not this script"
     warn "use: open -a zing file.zig   (after installing the app)"

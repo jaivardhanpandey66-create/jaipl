@@ -46,7 +46,9 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 ; The launcher.
-Source: "..\bin\zing.cmd"; DestDir: "{app}"; Flags: ignoreversion
+Source: "zing.cmd"; DestDir: "{app}"; Flags: ignoreversion
+; The classic zing icon, shown in Explorer for .zig files.
+Source: "..\..\packaging\icons\zing.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; The interpreter runtime.
 Source: "..\arcide\*"; DestDir: "{app}\{#RuntimeDir}\arcide"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Examples.
@@ -70,12 +72,12 @@ Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \
 ; Register the .zig extension.
 Root: HKCU; Subkey: "Software\Classes\.zig"; ValueType: string; ValueName: ""; \
   ValueData: "zing.source"; Flags: uninsdeletekey; Tasks: assoc
-Root: HKCU; Subkey: "Software\Classes\.jai\OpenWithProgids"; \
+Root: HKCU; Subkey: "Software\Classes\.zig\OpenWithProgids"; \
   ValueType: string; ValueName: "zing.source"; ValueData: ""; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\zing.source"; ValueType: string; ValueName: ""; \
   ValueData: "zing source file"; Flags: uninsdeletekey; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\zing.source\DefaultIcon"; \
-  ValueType: string; ValueName: ""; ValueData: "{app}\zing.exe,0"; Tasks: assoc
+  ValueType: string; ValueName: ""; ValueData: "{app}\zing.ico,0"; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\zing.source\shell\open\command"; \
   ValueType: string; ValueName: ""; ValueData: """{app}\zing.cmd"" ""%1"""; \
   Flags: uninsdeletekey; Tasks: assoc
