@@ -669,6 +669,75 @@ class Parser:
             return Binary(line=left.line, op=op, left=left, right=right)
         return left
 
+    def interpolated(self, line: int, text: str):
+        """Build "a ${expr} b" into "" + str(...) + ... concatenation.
+
+        Splitting happens here, in the parser, so the inner expressions are
+        real syntax with the caller's scope -- not a string-side feature.
+        """
+        parts: list[object] = []
+        i = 0
+        while True:
+            j = text.find("${", i)
+            if j == -1:
+                if i < len(text):
+                    parts.append(Literal(line=line, value=text[i:]))
+                break
+            if j > i:
+                parts.append(Literal(line=line, value=text[i:j]))
+            k = self._match_paren(text, j + 2)
+            if k == -1:
+                raise ParseError(
+                    "unterminated ${...} in string; the {} is missing", line, j + 1)
+            parts.append(self.inner_expression(text[j + 2:k], line))
+            i = k + 1
+        # Seed with "" so `"${a}${b}"` concatenates even when a and b are
+        # numbers, then coerce every computed part to text.
+        node: object = Literal(line=line, value="")
+        for part in parts:
+            wrapped = part if isinstance(part, Literal) else Call(
+                line=part.line, func=Var(line=part.line, name="str"),
+                args=(part,))
+            node = Binary(line=line, op="+", left=node, right=wrapped)
+        return node
+
+    def _match_paren(self, text: str, start: int) -> int:
+        """Position of the } matching the $ { at start, or -1."""
+        depth = 1
+        pos = start
+        while pos < len(text):
+            c = text[pos]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    return pos
+            pos += 1
+        return -1
+
+    def inner_expression(self, src: str, line: int):
+        """Lex and parse a fragment such as the inside of ${ 2 * x }.
+
+        The parser's own state is saved and restored, so the fragment sees
+        the same scope rules as the surrounding program.
+        """
+        from .lexer import LexError, tokenize_with_comments
+
+        try:
+            toks, _ = tokenize_with_comments(src)
+        except LexError as e:
+            raise ParseError(f"{e}", line, 0) from None
+        toks = [t for t in toks if t.kind != "newline"]
+        saved = (self.toks, self.i)
+        try:
+            self.toks = toks
+            self.i = 0
+            expr = self.expression()
+            return expr
+        finally:
+            self.toks, self.i = saved
+
     def bit_or(self):
         left = self.bit_xor()
         while self.at_op("|"):
@@ -797,6 +866,8 @@ class Parser:
 
         if t.kind in ("int", "float", "string"):
             self.advance()
+            if t.kind == "string" and "$" in str(t.value):
+                return self.interpolated(t.line, str(t.value))
             return Literal(line=t.line, value=t.value)
 
         if self.at_kw("true", "false", "null"):

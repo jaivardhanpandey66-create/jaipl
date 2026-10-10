@@ -169,6 +169,28 @@ class Bitwise(unittest.TestCase):
         self.assertIsInstance(fails("print(~true)"), RuntimeError_)
 
 
+class StringInterpolation(unittest.TestCase):
+    def test_interpolates_expressions(self):
+        src = ('let n = 3\n'
+               'let name = "zing"\n'
+               'print("n = ${n}, squared = ${n * n}, name = ${name}")')
+        self.assertEqual(printed(src)[0], "n = 3, squared = 9, name = zing")
+
+    def test_adjacent_computed_parts_do_not_add(self):
+        src = 'let a = 2\nlet b = 3\nlet both = "${a}${b}"\nprint(both)'
+        self.assertEqual(printed(src)[0], "23")
+
+    def test_nested_braces(self):
+        src = 'let v = [1, 2]\nprint("first: ${v[0]}")'
+        self.assertEqual(printed(src)[0], "first: 1")
+
+    def test_no_dollar_is_untouched(self):
+        self.assertEqual(printed('print("hello world")')[0], "hello world")
+
+    def test_unterminated_brace_is_an_error(self):
+        self.assertIsInstance(fails('print("${n")'), Exception)
+
+
 class Constants(unittest.TestCase):
     def test_constants_are_values_not_functions(self):
         # A function here would break arithmetic like `PI * 2`.
