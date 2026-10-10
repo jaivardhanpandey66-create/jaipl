@@ -147,15 +147,25 @@ Double quotes. `+` joins strings.
 ```zig
 let s = "zing"
 print(upper(s))              // ZING
-print(s[1:4])                // aip
+print(s[1:4])                // ing
 print(join(split("a,b,c", ","), " | "))   // a | b | c
-print(replace(s, "j", "J"))  // Zing
-print(starts_with(s, "jai")) // true
+print(replace(s, "z", "Z"))  // Zing
+print(starts_with(s, "zin")) // true
 print(repeat("ab", 3))       // ababab
 ```
 
 Useful ones: `upper lower strip lstrip rstrip split join replace find
 starts_with ends_with contains repeat count ord chr`.
+
+Values can be spliced into a string with `${...}`; the inside is a real
+expression in the current scope, so nested calls work:
+
+```zig
+let n = 3
+let name = "zing"
+print("n = ${n}, and ${name} has ${len(upper(name))} letters")  // n = 3, and ZING has 4 letters
+print("${n}${n + 1}")          // 34, not 7 -- interpolation always joins text
+```
 
 ---
 
