@@ -141,6 +141,34 @@ class StringBuiltins(unittest.TestCase):
         self.assertIn("join", str(err))
 
 
+class Bitwise(unittest.TestCase):
+    def test_binary_operators(self):
+        self.assertEqual(expr("5 & 3"), "1")
+        self.assertEqual(expr("5 | 3"), "7")
+        self.assertEqual(expr("5 ^ 3"), "6")
+        self.assertEqual(expr("5 << 2"), "20")
+        self.assertEqual(expr("20 >> 2"), "5")
+
+    def test_unary_not(self):
+        self.assertEqual(expr("~5"), "-6")
+        self.assertEqual(expr("~0"), "-1")
+
+    def test_precedence_follows_python(self):
+        # Additive binds tighter than shift, so this is 1 << 5 and not (1 << 2)+3.
+        self.assertEqual(expr("1 << 2 + 3"), "32")
+        self.assertEqual(expr("(1 << 2) + 3"), "7")
+        # Bitwise or is the loosest of the four.
+        self.assertEqual(expr("1 | 2 & 3"), "3")
+        self.assertEqual(expr("(1 | 2) & 3"), "3")
+
+    def test_needs_integers(self):
+        # `&&` stays boolean; a lone `&` is strictly a bit operation.
+        err = fails('print("a" & "b")')
+        self.assertIsInstance(err, RuntimeError_)
+        self.assertIn("needs two integers", str(err))
+        self.assertIsInstance(fails("print(~true)"), RuntimeError_)
+
+
 class Constants(unittest.TestCase):
     def test_constants_are_values_not_functions(self):
         # A function here would break arithmetic like `PI * 2`.

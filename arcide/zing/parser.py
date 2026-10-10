@@ -662,11 +662,43 @@ class Parser:
         return left
 
     def comparison(self):
-        left = self.additive()
+        left = self.bit_or()
         if self.at_op("==", "!=", "<", "<=", ">", ">="):
             op = str(self.advance().value)
-            right = self.additive()
+            right = self.bit_or()
             return Binary(line=left.line, op=op, left=left, right=right)
+        return left
+
+    def bit_or(self):
+        left = self.bit_xor()
+        while self.at_op("|"):
+            op = str(self.advance().value)
+            right = self.bit_xor()
+            left = Binary(line=left.line, op=op, left=left, right=right)
+        return left
+
+    def bit_xor(self):
+        left = self.bit_and()
+        while self.at_op("^"):
+            op = str(self.advance().value)
+            right = self.bit_and()
+            left = Binary(line=left.line, op=op, left=left, right=right)
+        return left
+
+    def bit_and(self):
+        left = self.bit_shift()
+        while self.at_op("&"):
+            op = str(self.advance().value)
+            right = self.bit_shift()
+            left = Binary(line=left.line, op=op, left=left, right=right)
+        return left
+
+    def bit_shift(self):
+        left = self.additive()
+        while self.at_op("<<", ">>"):
+            op = str(self.advance().value)
+            right = self.additive()
+            left = Binary(line=left.line, op=op, left=left, right=right)
         return left
 
     def additive(self):
@@ -696,7 +728,7 @@ class Parser:
         return left
 
     def unary(self):
-        if self.at_op("-", "!"):
+        if self.at_op("-", "!", "~"):
             t = self.advance()
             operand = self.unary()
             return Unary(line=t.line, op=str(t.value), operand=operand)

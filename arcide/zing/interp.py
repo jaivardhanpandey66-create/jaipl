@@ -1086,6 +1086,10 @@ class Interpreter:
 
         if t is Unary:
             v = self.eval(node.operand, env)
+            if node.op == "~":
+                if not isinstance(v, int) or isinstance(v, bool):
+                    raise RuntimeError_(f"~ needs an integer, got {self.type_name(v)}", node.line)
+                return ~v
             if node.op == "-":
                 if not isinstance(v, (int, float)) or isinstance(v, bool):
                     raise RuntimeError_(f"cannot negate {self.type_name(v)}", node.line)
@@ -1253,6 +1257,21 @@ class Interpreter:
             return {
                 "<": a < b, "<=": a <= b, ">": a > b, ">=": a >= b,
             }[op]
+        if op in ("&", "|", "^", "<<", ">>"):
+            for value in (a, b):
+                if not isinstance(value, int) or isinstance(value, bool):
+                    raise RuntimeError_(
+                        f"{op} needs two integers, got {self.type_name(a)} "
+                        f"{self.type_name(b)}", node.line)
+            if op == "&":
+                return a & b
+            if op == "|":
+                return a | b
+            if op == "^":
+                return a ^ b
+            if op == "<<":
+                return a << b
+            return a >> b
         raise RuntimeError_(f"unknown operator {op!r}", node.line)
 
     def loose_eq(self, a, b) -> bool:
